@@ -134,7 +134,7 @@ struct SDL_Event {
         bool repeat;
     } key{};
     struct {
-        char text[32];
+        const char* text;
     } text{};
     struct {
         Uint32 which;
@@ -329,7 +329,14 @@ inline bool SDL_PollEvent(SDL_Event* out) {
                 break;
             case SDL_TEXTINPUT:
                 e.type = SDL_EVENT_TEXT_INPUT;
-                std::strncpy(e.text.text, e2.text.text, sizeof e.text.text - 1);
+                {  // the characters live on in a ring of buffers, as SDL3's string does until the next event
+                    static char ring[8][32];
+                    static int next = 0;
+                    char* slot = ring[next++ % 8];
+                    std::strncpy(slot, e2.text.text, 31);
+                    slot[31] = 0;
+                    e.text.text = slot;
+                }
                 break;
             case SDL_MOUSEMOTION:
                 e.type = SDL_EVENT_MOUSE_MOTION;
@@ -382,10 +389,6 @@ inline SDL_MouseButtonFlags SDL_GetMouseState(float* x, float* y) {
 
 inline SDL_Window* SDL_CreateWindow(const char* title, int w, int h, Uint32 flags) {
     return ::SDL_CreateWindow(title, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, w, h, flags);
-}
-inline bool SDL_GetWindowSizeInPixels(SDL_Window* window, int* w, int* h) {
-    ::SDL_GL_GetDrawableSize(window, w, h);
-    return true;
 }
 inline void SDL_GL_DestroyContext(SDL_GLContext c) { ::SDL_GL_DeleteContext(c); }
 inline void SDL_StartTextInput(SDL_Window*) {}

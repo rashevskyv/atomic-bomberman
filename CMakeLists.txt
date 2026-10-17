@@ -7,9 +7,10 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 # Nintendo Switch (devkitA64, newlib): strict -std=c++20 hides POSIX functions such as strnlen.
+# (Not _GNU_SOURCE: that makes newlib turn the word "quad" into "quad_t" everywhere.)
 if(NINTENDO_SWITCH OR CMAKE_SYSTEM_NAME STREQUAL "NintendoSwitch")
     set(AB_SWITCH ON)
-    add_compile_definitions(_GNU_SOURCE __SWITCH__)
+    add_compile_definitions(_POSIX_C_SOURCE=200809L __SWITCH__)
 endif()
 
 # Windows release builds link the C++ runtime statically so the .exe runs without a redistributable.
