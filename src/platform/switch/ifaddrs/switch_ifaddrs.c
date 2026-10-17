@@ -44,6 +44,10 @@ void freeifaddrs(struct ifaddrs* list) {
 #include <sys/socket.h>
 #include <unistd.h>
 
+#ifndef INADDR_LOOPBACK
+#define INADDR_LOOPBACK 0x7f000001UL
+#endif
+
 __attribute__((weak)) int pipe(int fds[2]) {
     int a = socket(AF_INET, SOCK_DGRAM, 0);
     int b = socket(AF_INET, SOCK_DGRAM, 0);
