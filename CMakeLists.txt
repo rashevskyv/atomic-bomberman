@@ -117,7 +117,9 @@ if(AB_ONLINE)
     set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)  # (libjuice would switch it on, for this whole build)
     FetchContent_Declare(libjuice
         URL https://github.com/paullouisageneau/libjuice/archive/refs/tags/v1.7.4.tar.gz
-        URL_HASH SHA256=95c088862aa1b88b73d62aa99577135010eb768fcafb252d13aa85a8515ef798)
+        URL_HASH SHA256=95c088862aa1b88b73d62aa99577135010eb768fcafb252d13aa85a8515ef798
+        # The Switch has no <ifaddrs.h>: libjuice's own fallback for that (the one Android takes) is used.
+        PATCH_COMMAND sed -i "s/^#ifdef __ANDROID__$/#if defined(__ANDROID__) || defined(__SWITCH__)/" src/socket.h)
     FetchContent_GetProperties(libjuice)
     if(NOT libjuice_POPULATED)
         FetchContent_Populate(libjuice)
