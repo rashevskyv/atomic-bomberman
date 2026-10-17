@@ -61,7 +61,12 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install SDL2 and Mesa for the Switch
         run: |
-          dkp-pacman -Syu --noconfirm switch-sdl2 switch-mesa switch-glad
+          for try in 1 2 3 4 5; do
+            dkp-pacman -Syu --noconfirm switch-sdl2 switch-mesa switch-glad && break
+            echo "devkitPro's package server failed (try $try); waiting"
+            sleep $((try * 20))
+          done
+          test -d /opt/devkitpro/portlibs/switch/include/SDL2
       - name: Configure
         run: |
           source /opt/devkitpro/switchvars.sh
