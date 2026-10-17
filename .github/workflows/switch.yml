@@ -50,3 +50,30 @@ jobs:
         run: |
           source /opt/devkitpro/switchvars.sh
           cmake --build build-switch --target ab_online -j"$(nproc)"
+
+  game:
+    runs-on: ubuntu-24.04
+    container: devkitpro/devkita64:latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install SDL2 and Mesa for the Switch
+        run: |
+          dkp-pacman -Syu --noconfirm switch-sdl2 switch-mesa switch-glad
+      - name: Configure
+        run: |
+          source /opt/devkitpro/switchvars.sh
+          cmake -S . -B build-switch \
+            -DCMAKE_TOOLCHAIN_FILE=/opt/devkitpro/cmake/Switch.cmake \
+            -DAB_ONLINE=ON -DCMAKE_BUILD_TYPE=Release
+      - name: Build atomic.nro
+        run: |
+          source /opt/devkitpro/switchvars.sh
+          cmake --build build-switch --target atomic -j"$(nproc)"
+          ls -la build-switch/*.nro
+      - uses: actions/upload-artifact@v4
+        with:
+          name: atomic-bomberman-switch
+          path: build-switch/*.nro

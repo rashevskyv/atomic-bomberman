@@ -447,7 +447,7 @@ int runGame(int argc, char** argv, bool& again) {
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, opt.gles ? 0 : 3);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, opt.gles ? SDL_GL_CONTEXT_PROFILE_ES : SDL_GL_CONTEXT_PROFILE_CORE);
     SDL_Window* window = SDL_CreateWindow("Atomic Bomberman (modern)", opt.native ? 640 : 960, opt.native ? 480 : 720,
-#ifdef __ANDROID__
+#if defined(__ANDROID__) || defined(__SWITCH__)
                                           SDL_WINDOW_OPENGL | SDL_WINDOW_FULLSCREEN);
 #else
                                           SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
@@ -496,6 +496,10 @@ int runGame(int argc, char** argv, bool& again) {
             opt.importFolder = std::string(shared) + "/original";
             stagingDir = std::string(shared) + "/import-staging";  // the roomier storage
         }
+#endif
+#ifdef __SWITCH__
+    // On the SD card: the user copies the original game into this folder and it is converted at the next start.
+    if (opt.importFolder.empty()) opt.importFolder = std::string(abx::kHome) + "original";
 #endif
     // Saved choice (Options, Graphics And Sound): the free set although original data is there.
     const bool unattended = opt.frames > 0 || opt.menuShot > 0 || !opt.script.empty() || opt.demo;
@@ -2324,6 +2328,13 @@ int runGame(int argc, char** argv, bool& again) {
 }
 
 int main(int argc, char** argv) {
+#ifdef __SWITCH__
+    // Network sockets, controllers, and a log on the SD card (a console has no terminal to read).
+    abx::makeHome();
+    std::freopen("sdmc:/switch/atomic-bomberman/log.txt", "w", stderr);
+    socketInitializeDefault();
+    abx::startControllers();
+#endif
     for (;;) {
         bool again = false;
         const int result = runGame(argc, argv, again);
