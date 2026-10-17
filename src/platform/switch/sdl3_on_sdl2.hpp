@@ -8,7 +8,7 @@
 #define SDL_Event SDL2_Event
 #define SDL_AudioSpec SDL2_AudioSpec
 #define SDL_AudioStream SDL2_AudioStream
-#include <SDL2/SDL.h>
+#include <SDL.h>
 #undef SDL_Event
 #undef SDL_AudioSpec
 #undef SDL_AudioStream
