@@ -4,6 +4,7 @@
 #define MBEDTLS_NO_PLATFORM_ENTROPY
 #define MBEDTLS_ENTROPY_HARDWARE_ALT
 #define MBEDTLS_PLATFORM_MS_TIME_ALT
-// Modules that need a Unix or Windows system underneath; the game uses its own sockets and timers.
+// libnx has the BSD sockets mbedTLS's net module wants (getaddrinfo, select), but the module
+// only accepts a Unix-like system by name. Its timing module (not used here) has no clock to use.
+#define MBEDTLS_PLATFORM_IS_UNIXLIKE
 #undef MBEDTLS_TIMING_C
-#undef MBEDTLS_NET_C
