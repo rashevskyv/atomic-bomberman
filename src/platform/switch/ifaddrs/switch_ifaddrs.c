@@ -36,3 +36,34 @@ void freeifaddrs(struct ifaddrs* list) {
         list = next;
     }
 }
+
+// libnx has no pipe(); libjuice uses one to wake up its polling thread. Two UDP sockets on the
+// loopback, each connected to the other, do the same job: what is written to fds[1] is read at fds[0].
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
+#include <unistd.h>
+
+__attribute__((weak)) int pipe(int fds[2]) {
+    int a = socket(AF_INET, SOCK_DGRAM, 0);
+    int b = socket(AF_INET, SOCK_DGRAM, 0);
+    if (a < 0 || b < 0) goto fail;
+    {
+        struct sockaddr_in sa, sb;
+        socklen_t la = sizeof sa, lb = sizeof sb;
+        memset(&sa, 0, sizeof sa);
+        sa.sin_family = AF_INET;
+        sa.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+        sb = sa;
+        if (bind(a, (struct sockaddr*)&sa, sizeof sa) != 0 || bind(b, (struct sockaddr*)&sb, sizeof sb) != 0) goto fail;
+        if (getsockname(a, (struct sockaddr*)&sa, &la) != 0 || getsockname(b, (struct sockaddr*)&sb, &lb) != 0) goto fail;
+        if (connect(a, (struct sockaddr*)&sb, sizeof sb) != 0 || connect(b, (struct sockaddr*)&sa, sizeof sa) != 0) goto fail;
+    }
+    fds[0] = a;
+    fds[1] = b;
+    return 0;
+fail:
+    if (a >= 0) close(a);
+    if (b >= 0) close(b);
+    return -1;
+}
