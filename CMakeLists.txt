@@ -6,6 +6,12 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+# Nintendo Switch (devkitA64, newlib): strict -std=c++20 hides POSIX functions such as strnlen.
+if(NINTENDO_SWITCH OR CMAKE_SYSTEM_NAME STREQUAL "NintendoSwitch")
+    set(AB_SWITCH ON)
+    add_compile_definitions(_GNU_SOURCE __SWITCH__)
+endif()
+
 # Windows release builds link the C++ runtime statically so the .exe runs without a redistributable.
 set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 
