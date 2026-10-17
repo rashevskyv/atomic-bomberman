@@ -71,7 +71,12 @@ jobs:
       - name: Build atomic.nro
         run: |
           source /opt/devkitpro/switchvars.sh
-          cmake --build build-switch --target atomic -j"$(nproc)"
+          set +e
+          cmake --build build-switch --target atomic -j"$(nproc)" -- -k 2>&1 | tee build.log
+          status=${PIPESTATUS[0]}
+          echo "=== ERRORS ==="
+          grep -E "error:|undefined reference|cannot find" build.log | sed 's|/__w/atomic-bomberman/atomic-bomberman/||' | sort -u | head -80
+          [ "$status" = 0 ] || exit 1
           ls -la build-switch/*.nro
       - uses: actions/upload-artifact@v4
         with:

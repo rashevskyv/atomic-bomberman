@@ -78,6 +78,33 @@ using SDL_MouseButtonFlags = Uint32;
 using SDL_GLContextPtr = SDL_GLContext;
 constexpr Uint16 SDL_KMOD_CTRL = KMOD_CTRL;
 constexpr Uint16 SDL_KMOD_ALT = KMOD_ALT;
+// SDL3 names its letter keys with capitals.
+constexpr SDL_Keycode SDLK_A = SDLK_a;
+constexpr SDL_Keycode SDLK_B = SDLK_b;
+constexpr SDL_Keycode SDLK_C = SDLK_c;
+constexpr SDL_Keycode SDLK_D = SDLK_d;
+constexpr SDL_Keycode SDLK_E = SDLK_e;
+constexpr SDL_Keycode SDLK_F = SDLK_f;
+constexpr SDL_Keycode SDLK_G = SDLK_g;
+constexpr SDL_Keycode SDLK_H = SDLK_h;
+constexpr SDL_Keycode SDLK_I = SDLK_i;
+constexpr SDL_Keycode SDLK_J = SDLK_j;
+constexpr SDL_Keycode SDLK_K = SDLK_k;
+constexpr SDL_Keycode SDLK_L = SDLK_l;
+constexpr SDL_Keycode SDLK_M = SDLK_m;
+constexpr SDL_Keycode SDLK_N = SDLK_n;
+constexpr SDL_Keycode SDLK_O = SDLK_o;
+constexpr SDL_Keycode SDLK_P = SDLK_p;
+constexpr SDL_Keycode SDLK_Q = SDLK_q;
+constexpr SDL_Keycode SDLK_R = SDLK_r;
+constexpr SDL_Keycode SDLK_S = SDLK_s;
+constexpr SDL_Keycode SDLK_T = SDLK_t;
+constexpr SDL_Keycode SDLK_U = SDLK_u;
+constexpr SDL_Keycode SDLK_V = SDLK_v;
+constexpr SDL_Keycode SDLK_W = SDLK_w;
+constexpr SDL_Keycode SDLK_X = SDLK_x;
+constexpr SDL_Keycode SDLK_Y = SDLK_y;
+constexpr SDL_Keycode SDLK_Z = SDLK_z;
 
 enum : Uint32 {
     SDL_EVENT_QUIT = 0x100,
