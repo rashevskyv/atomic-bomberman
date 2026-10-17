@@ -39,11 +39,11 @@
 
 namespace abx {
 
-constexpr const char* kHome = "sdmc:/switch/atomic-bomberman/";
+constexpr const char* kHome = "/switch/atomic-bomberman/";  // the SD card (libnx's default device)
 
 inline void makeHome() {
-    mkdir("sdmc:/switch", 0777);
-    mkdir("sdmc:/switch/atomic-bomberman", 0777);
+    mkdir("/switch", 0777);
+    mkdir("/switch/atomic-bomberman", 0777);
 }
 
 }  // namespace abx
@@ -183,11 +183,16 @@ namespace abx {
 
 constexpr int kPads = 9;  // players 1-8 and the handheld's own
 
+enum class Kind { Standard, JoyLeft, JoyRight };  // a Joy-Con held sideways on its own is a pad of its own
+
 struct Slot {
     PadState pad;
     bool connected = false;
+    Kind kind = Kind::Standard;
+    u32 style = 0, type = 0;
     std::array<bool, SDL_GAMEPAD_BUTTON_COUNT> held{};
     int x = 0, y = 0;
+    int loggedPresses = 0;
 };
 
 inline std::array<Slot, kPads>& slots() {
@@ -201,37 +206,114 @@ inline std::deque<SDL_Event>& queue() {
 
 inline HidNpadIdType idOf(int slot) { return slot < 8 ? static_cast<HidNpadIdType>(HidNpadIdType_No1 + slot) : HidNpadIdType_Handheld; }
 
+// What the SD card's log.txt says about the controllers: enough to settle from one test run which
+// way a Joy-Con held sideways reports its buttons and stick.
+inline void logLine(const char* what, int slot, const Slot& s, u64 buttons = 0, int sx = 0, int sy = 0, int rx = 0, int ry = 0) {
+    std::fprintf(stderr, "PAD   %s slot=%d style=0x%x type=0x%x kind=%d buttons=0x%llx stickL=%d,%d stickR=%d,%d\n", what, slot, s.style, s.type,
+                 static_cast<int>(s.kind), static_cast<unsigned long long>(buttons), sx, sy, rx, ry);
+    std::fflush(stderr);
+}
+
+inline bool& controllersStarted() {
+    static bool started = false;
+    return started;
+}
+
+// Once, after SDL has started (its own joystick driver is not used, so it does not touch these settings).
 inline void startControllers() {
-    // Joy-Con may be held sideways, each alone, and play as separate controllers.
+    if (controllersStarted()) return;
+    controllersStarted() = true;
+    // Eight players; Joy-Con held sideways, each alone, play as separate controllers.
     padConfigureInput(8, HidNpadStyleSet_NpadStandard);
     hidSetNpadJoyHoldType(HidNpadJoyHoldType_Horizontal);
     for (int i = 0; i < kPads; ++i) padInitializeWithMask(&slots()[static_cast<std::size_t>(i)].pad, 1ull << idOf(i));
 }
 
-inline void readButtons(const PadState& pad, std::array<bool, SDL_GAMEPAD_BUTTON_COUNT>& out) {
-    const u64 b = padGetButtons(&pad);
-    const u64 side = HidNpadButton_L | HidNpadButton_R | HidNpadButton_ZL | HidNpadButton_ZR | HidNpadButton_LeftSL | HidNpadButton_LeftSR |
-                     HidNpadButton_RightSL | HidNpadButton_RightSR;
-    out[SDL_GAMEPAD_BUTTON_SOUTH] = (b & HidNpadButton_A) != 0;
-    out[SDL_GAMEPAD_BUTTON_EAST] = (b & HidNpadButton_B) != 0;
-    out[SDL_GAMEPAD_BUTTON_WEST] = (b & (HidNpadButton_Y | side)) != 0;
-    out[SDL_GAMEPAD_BUTTON_NORTH] = (b & HidNpadButton_X) != 0;
-    out[SDL_GAMEPAD_BUTTON_START] = (b & HidNpadButton_Plus) != 0;
-    out[SDL_GAMEPAD_BUTTON_DPAD_UP] = (b & HidNpadButton_Up) != 0;
-    out[SDL_GAMEPAD_BUTTON_DPAD_DOWN] = (b & HidNpadButton_Down) != 0;
-    out[SDL_GAMEPAD_BUTTON_DPAD_LEFT] = (b & HidNpadButton_Left) != 0;
-    out[SDL_GAMEPAD_BUTTON_DPAD_RIGHT] = (b & HidNpadButton_Right) != 0;
+// The system's controller screen, where a pair of Joy-Con is split into two players (or joined again)
+// and controllers are assigned.
+inline void openControllerApplet() {
+    HidLaControllerSupportResultInfo info;
+    HidLaControllerSupportArg arg;
+    hidLaCreateControllerSupportArg(&arg);
+    arg.hdr.player_count_max = 8;
+    arg.hdr.enable_permit_joy_dual = 1;
+    arg.hdr.enable_take_over_connection = 1;
+    hidLaShowControllerSupportForSystem(&info, &arg, false);
+}
+
+inline Kind kindOf(u32 style, u32 type) {
+    if (style & HidNpadStyleTag_NpadJoyDual) return Kind::Standard;
+    if (type == HidDeviceTypeBits_JoyLeft) return Kind::JoyLeft;
+    if (type == HidDeviceTypeBits_JoyRight) return Kind::JoyRight;
+    return Kind::Standard;
+}
+
+// The buttons as the game knows them. A Joy-Con on its own is held sideways, and the mapping is
+// the same one devkitPro's SDL2 uses for it: its four arrow buttons (left one) or four face
+// buttons (right one) are the face buttons, and its stick's four directions are the arrows.
+inline void readButtons(const Slot& s, std::array<bool, SDL_GAMEPAD_BUTTON_COUNT>& out, bool& applet) {
+    const u64 b = padGetButtons(&s.pad);
+    auto has = [&](u64 mask) { return (b & mask) != 0; };
+    const u64 shoulders = HidNpadButton_L | HidNpadButton_R | HidNpadButton_ZL | HidNpadButton_ZR;
+    applet = false;
+    if (s.kind == Kind::JoyLeft) {
+        out[SDL_GAMEPAD_BUTTON_SOUTH] = has(HidNpadButton_Down);
+        out[SDL_GAMEPAD_BUTTON_EAST] = has(HidNpadButton_Left | HidNpadButton_LeftSL);
+        out[SDL_GAMEPAD_BUTTON_NORTH] = has(HidNpadButton_Right);
+        out[SDL_GAMEPAD_BUTTON_WEST] = has(HidNpadButton_Up | HidNpadButton_LeftSR);
+        out[SDL_GAMEPAD_BUTTON_START] = has(HidNpadButton_StickL);
+        out[SDL_GAMEPAD_BUTTON_DPAD_LEFT] = has(HidNpadButton_StickLUp);
+        out[SDL_GAMEPAD_BUTTON_DPAD_UP] = has(HidNpadButton_StickLRight);
+        out[SDL_GAMEPAD_BUTTON_DPAD_RIGHT] = has(HidNpadButton_StickLDown);
+        out[SDL_GAMEPAD_BUTTON_DPAD_DOWN] = has(HidNpadButton_StickLLeft);
+        applet = has(HidNpadButton_Minus);
+    } else if (s.kind == Kind::JoyRight) {
+        out[SDL_GAMEPAD_BUTTON_SOUTH] = has(HidNpadButton_X);
+        out[SDL_GAMEPAD_BUTTON_EAST] = has(HidNpadButton_A | HidNpadButton_RightSL);
+        out[SDL_GAMEPAD_BUTTON_NORTH] = has(HidNpadButton_Y);
+        out[SDL_GAMEPAD_BUTTON_WEST] = has(HidNpadButton_B | HidNpadButton_RightSR);
+        out[SDL_GAMEPAD_BUTTON_START] = has(HidNpadButton_StickR);
+        out[SDL_GAMEPAD_BUTTON_DPAD_LEFT] = has(HidNpadButton_StickRDown);
+        out[SDL_GAMEPAD_BUTTON_DPAD_UP] = has(HidNpadButton_StickRLeft);
+        out[SDL_GAMEPAD_BUTTON_DPAD_RIGHT] = has(HidNpadButton_StickRUp);
+        out[SDL_GAMEPAD_BUTTON_DPAD_DOWN] = has(HidNpadButton_StickRRight);
+        applet = has(HidNpadButton_Plus);
+    } else {
+        out[SDL_GAMEPAD_BUTTON_SOUTH] = has(HidNpadButton_A);
+        out[SDL_GAMEPAD_BUTTON_EAST] = has(HidNpadButton_B);
+        out[SDL_GAMEPAD_BUTTON_NORTH] = has(HidNpadButton_X);
+        out[SDL_GAMEPAD_BUTTON_WEST] = has(HidNpadButton_Y | shoulders);
+        out[SDL_GAMEPAD_BUTTON_START] = has(HidNpadButton_Plus);
+        out[SDL_GAMEPAD_BUTTON_DPAD_UP] = has(HidNpadButton_Up);
+        out[SDL_GAMEPAD_BUTTON_DPAD_DOWN] = has(HidNpadButton_Down);
+        out[SDL_GAMEPAD_BUTTON_DPAD_LEFT] = has(HidNpadButton_Left);
+        out[SDL_GAMEPAD_BUTTON_DPAD_RIGHT] = has(HidNpadButton_Right);
+        applet = has(HidNpadButton_Minus);
+    }
 }
 
 // Reads every controller and queues what changed since the last time, as SDL3 would report it.
 inline void pollControllers() {
+    if (!controllersStarted()) startControllers();
+    bool wantApplet = false;
     for (int i = 0; i < kPads; ++i) {
         Slot& s = slots()[static_cast<std::size_t>(i)];
         padUpdate(&s.pad);
         const bool now = padGetStyleSet(&s.pad) != 0 && padIsConnected(&s.pad);
         const SDL_JoystickID id = i + 1;
+        if (now) {
+            const u32 style = padGetStyleSet(&s.pad), type = hidGetNpadDeviceType(idOf(i));
+            const Kind kind = kindOf(style, type);
+            if (kind != s.kind || style != s.style || type != s.type) {
+                s.style = style, s.type = type, s.kind = kind;
+                s.held = {};
+                s.x = s.y = 0;
+                logLine(s.connected ? "changed" : "found", i, s);
+            }
+        }
         if (now != s.connected) {
             s.connected = now;
+            if (!now) logLine("lost", i, s);
             SDL_Event e;
             e.type = now ? SDL_EVENT_GAMEPAD_ADDED : SDL_EVENT_GAMEPAD_REMOVED;
             e.gdevice.which = id;
@@ -242,7 +324,14 @@ inline void pollControllers() {
         }
         if (!now) continue;
         std::array<bool, SDL_GAMEPAD_BUTTON_COUNT> held{};
-        readButtons(s.pad, held);
+        bool applet = false;
+        readButtons(s, held, applet);
+        wantApplet = wantApplet || (applet && padGetButtonsDown(&s.pad) != 0);
+        if (s.loggedPresses < 40 && padGetButtonsDown(&s.pad) != 0) {  // the first presses, as raw as they come
+            ++s.loggedPresses;
+            const HidAnalogStickState l = padGetStickPos(&s.pad, 0), r = padGetStickPos(&s.pad, 1);
+            logLine("press", i, s, padGetButtonsDown(&s.pad), l.x, l.y, r.x, r.y);
+        }
         for (int b = 0; b < SDL_GAMEPAD_BUTTON_COUNT; ++b) {
             if (held[static_cast<std::size_t>(b)] == s.held[static_cast<std::size_t>(b)]) continue;
             SDL_Event e;
@@ -252,8 +341,15 @@ inline void pollControllers() {
             queue().push_back(e);
         }
         s.held = held;
-        const HidAnalogStickState st = padGetStickPos(&s.pad, 0);
-        const int x = st.x, y = -st.y;  // libnx: up is positive; SDL: down is positive
+        // The stick's two axes: only a pad that is not on its own has one the game reads (alone, its
+        // stick is four arrow buttons above).
+        int x = 0, y = 0;
+        if (s.kind == Kind::Standard) {
+            const HidAnalogStickState l = padGetStickPos(&s.pad, 0), r = padGetStickPos(&s.pad, 1);
+            const bool useRight = std::abs(r.x) + std::abs(r.y) > std::abs(l.x) + std::abs(l.y);
+            const HidAnalogStickState st = useRight ? r : l;
+            x = st.x, y = -st.y;  // libnx: up is positive; SDL: down is positive
+        }
         if (x != s.x || y != s.y) {
             s.x = x;
             s.y = y;
@@ -262,6 +358,11 @@ inline void pollControllers() {
             e.gaxis.which = id;
             queue().push_back(e);
         }
+    }
+    if (wantApplet) {
+        std::fprintf(stderr, "PAD   opening the controller screen\n");
+        std::fflush(stderr);
+        openControllerApplet();
     }
 }
 

@@ -20,6 +20,7 @@
 #include "app/editor.hpp"
 #include "app/original_folder.hpp"
 #include "app/import_screen.hpp"
+#include "app/mods.hpp"
 #include "app/names.hpp"
 #include "app/net_ui.hpp"
 #include "app/pad_keys.hpp"
@@ -73,6 +74,9 @@ struct Options {
 #ifdef __ANDROID__
     bool gles = true;         // OpenGL ES 3.0 (always on a phone)
     bool touch = true;        // on-screen controls
+#elif defined(__SWITCH__)
+    bool gles = true;         // OpenGL ES 3.0 (the only kind the console's SDL2 has)
+    bool touch = false;
 #else
     bool gles = false;        // --gles: OpenGL ES 3.0 instead of OpenGL 3.3
     bool touch = false;       // --touch: on-screen controls, worked with the mouse
@@ -441,7 +445,10 @@ int runGame(int argc, char** argv, bool& again) {
         std::fprintf(stderr, "ERROR SDL_Init: %s\n", SDL_GetError());
         return 1;
     }
-    // Desktop: OpenGL 3.3. Phones (and --gles, for trying that path on a desktop): OpenGL ES 3.0.
+#ifdef __SWITCH__
+    abx::startControllers();
+#endif
+    // Desktop: OpenGL 3.3. Phones, the Switch (and --gles, for trying that path on a desktop): OpenGL ES 3.0.
     ab::setOpenGLES(opt.gles);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, opt.gles ? 0 : 3);
@@ -549,6 +556,9 @@ int runGame(int argc, char** argv, bool& again) {
             std::fprintf(stderr, "WARN  Cannot write the free asset set to %s: running with placeholder shapes, no menu, no sound.\n", freeDir.c_str());
         }
     }
+#ifdef __SWITCH__
+    if (!opt.gameDir.empty()) ab::applyMods(std::string(abx::kHome) + "mods", opt.gameDir);
+#endif
     if (!opt.gameDir.empty()) {
         std::fprintf(stderr, "INFO  Game files: %s%s\n", opt.gameDir.c_str(), ab::isFreeAssetDir(opt.gameDir) ? " (free asset set)" : "");
         opt.titleOnly = ab::isFreeAssetDir(opt.gameDir);  // the intro movie and logos are the original's: only the title screen
@@ -2277,7 +2287,11 @@ int runGame(int argc, char** argv, bool& again) {
                     startAnew("The folder is remembered.");
                 } else if (ab::folder::pickState() == ab::folder::Pick::Failed) {
                     std::fprintf(stderr, "WARN  No folder chooser: %s\n", ab::folder::pickError().c_str());
+#ifdef __SWITCH__
+                    showMessage({"Copy the original game to the SD card:", "/switch/atomic-bomberman/original", "It is converted at the next start."},
+#else
                     showMessage({"No folder chooser on this system.", "The data can be taken with a command:", "atomic --import-assets FOLDER"},
+#endif
                                 [&]() { screen = Screen::Options; });
                 }
             }
@@ -2331,9 +2345,8 @@ int main(int argc, char** argv) {
 #ifdef __SWITCH__
     // Network sockets, controllers, and a log on the SD card (a console has no terminal to read).
     abx::makeHome();
-    std::freopen("sdmc:/switch/atomic-bomberman/log.txt", "w", stderr);
+    std::freopen("/switch/atomic-bomberman/log.txt", "w", stderr);
     socketInitializeDefault();
-    abx::startControllers();
 #endif
     for (;;) {
         bool again = false;

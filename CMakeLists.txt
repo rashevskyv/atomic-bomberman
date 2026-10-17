@@ -208,6 +208,7 @@ if(SDL3_FOUND)
         src/app/pad_keys.cpp
         src/app/screen_keyboard.cpp
         src/app/import_screen.cpp
+        src/app/mods.cpp
         src/app/original_folder.cpp
         src/rendering/gl.cpp
         src/rendering/renderer.cpp
