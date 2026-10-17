@@ -13,3 +13,13 @@ int mbedtls_hardware_poll(void* data, unsigned char* output, size_t len, size_t*
     *olen = len;
     return 0;
 }
+
+#include <time.h>
+#include <mbedtls/platform_time.h>
+
+// Milliseconds on a clock that only goes forward (MBEDTLS_PLATFORM_MS_TIME_ALT).
+mbedtls_ms_time_t mbedtls_ms_time(void) {
+    struct timespec t;
+    clock_gettime(CLOCK_MONOTONIC, &t);
+    return (mbedtls_ms_time_t)t.tv_sec * 1000 + (mbedtls_ms_time_t)(t.tv_nsec / 1000000);
+}
