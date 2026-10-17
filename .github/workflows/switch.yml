@@ -1,0 +1,30 @@
+name: switch
+
+# Builds the Nintendo Switch port (devkitA64 + libnx) inside devkitPro's container.
+# Milestone 1: the libraries that have no window or SDL in them (game rules, readers
+# for the original game's files, the free asset set, network play).
+
+on:
+  push:
+    branches: ["claude/**"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  libs:
+    runs-on: ubuntu-24.04
+    container: devkitpro/devkita64:latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure
+        run: |
+          source /opt/devkitpro/switchvars.sh
+          cmake -S . -B build-switch \
+            -DCMAKE_TOOLCHAIN_FILE=/opt/devkitpro/cmake/Switch.cmake \
+            -DAB_ONLINE=OFF -DCMAKE_BUILD_TYPE=Release
+      - name: Build the libraries
+        run: |
+          source /opt/devkitpro/switchvars.sh
+          cmake --build build-switch --target ab_game ab_resources ab_free ab_net -j"$(nproc)"
