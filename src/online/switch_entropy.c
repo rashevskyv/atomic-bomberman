@@ -15,7 +15,7 @@ int mbedtls_hardware_poll(void* data, unsigned char* output, size_t len, size_t*
 }
 
 #include <time.h>
-#include <mbedtls/platform_time.h>
+#include <mbedtls/platform_util.h>
 
 // Milliseconds on a clock that only goes forward (MBEDTLS_PLATFORM_MS_TIME_ALT).
 mbedtls_ms_time_t mbedtls_ms_time(void) {
