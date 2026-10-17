@@ -16,6 +16,9 @@ jobs:
   libs:
     runs-on: ubuntu-24.04
     container: devkitpro/devkita64:latest
+    defaults:
+      run:
+        shell: bash
     steps:
       - uses: actions/checkout@v4
       - name: Configure
