@@ -479,6 +479,7 @@ int runGame(int argc, char** argv, bool& again) {
         return 1;
     }
     SDL_GL_SetSwapInterval(opt.frames > 0 ? 0 : 1);  // automated runs do not wait for the display
+    std::fprintf(stderr, "INFO  Atomic Bomberman (modern) " AB_VERSION "\n");
     std::fprintf(stderr, "INFO  OpenGL %s\n", reinterpret_cast<const char*>(glGetString(GL_VERSION)));
 
     std::string requested = opt.gameDir;
