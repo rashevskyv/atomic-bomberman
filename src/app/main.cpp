@@ -2346,6 +2346,8 @@ int main(int argc, char** argv) {
     // Network sockets, controllers, and a log on the SD card (a console has no terminal to read).
     abx::makeHome();
     socketInitializeDefault();
+    // Give the socket transfer memory back at exit; otherwise hbl faults clearing the heap on return to the menu.
+    std::atexit(socketExit);
     // Started with nxlink (nxlink -s atomic.nro): the log goes to the computer's terminal as it is written.
     if (nxlinkStdio() < 0) std::freopen("/switch/atomic-bomberman/log.txt", "w", stderr);
 #endif
