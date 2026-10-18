@@ -66,6 +66,8 @@ Defaults are those of the tuning values and of an options file written by the or
 - **Adjust Audio**: a placeholder in the original (message 320, "Audio Adjustment screen will be here..."). This implementation offers a music and a sound volume there, stored as `music_volume` and `sound_volume`. [M] A third row, "Unused voice clips" (`unused_voices`, off by default), adds voice lines of the disc that the original never plays: [`unused-voices.md`](unused-voices.md). [M]
 - **Assign Keyboard Player** and **Define keyboard layouts**: see below.
 
+- **Language** (`language`, not in the original): the last row of the Options screen. Left and Right choose English or a language file of the language folder (`CODE.json`, named by its `_language_name` key). The change applies at once and is saved. [M]
+
 Not carried over: node name, modem and protocol settings.
 
 ## Campaign mode

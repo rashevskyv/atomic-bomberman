@@ -23,6 +23,7 @@
 #include "app/mods.hpp"
 #include "app/names.hpp"
 #include "app/net_ui.hpp"
+#include "app/options_layout.hpp"
 #include "app/pad_keys.hpp"
 #include "app/touch.hpp"
 #include "audio/audio.hpp"
@@ -406,7 +407,9 @@ std::string controlName(Control c) {
     }
 }
 
-constexpr int kOptionRows = 18;  // the original's, and this implementation's: sound test, original game data, which data to use
+// The Options rows: the original's, then this implementation's (sound test, original game data,
+// which data to use, language). The language row is the last one; see options_layout.hpp.
+constexpr int kOptionRows = ab::options::kRows;
 enum class Screen { MainMenu, PlayerList, LevelSetup, Match, Roulette, Options, Help, HelpList, Message, CampaignList, Intro, Keys, Editor, AudioAdjust, Movie, Net, SoundTest };
 
 using ab::SchemeEntry;
@@ -527,7 +530,10 @@ int runGame(int argc, char** argv, bool& again) {
         }
     }
     // The text language, before any screen is drawn. Automated runs read only the flag.
-    ab::loadLanguage(opt.langDir.empty() ? userFile("lang") : opt.langDir, opt.language);
+    // The languages the Options menu offers are the files of the same folder, read once here.
+    const std::string langFolder = opt.langDir.empty() ? userFile("lang") : opt.langDir;
+    ab::loadLanguage(langFolder, opt.language);
+    const std::vector<ab::LanguageChoice> languages = ab::listLanguages(langFolder);
     // Unattended runs show these screens only when asked to with --import-folder.
     if ((!opt.importFolder.empty() || !unattended) && requested.empty() && !opt.freeAssets && ab::ensureFreeAssets(freeDir, true)) {
         ab::ImportScreens screens;
@@ -570,6 +576,8 @@ int runGame(int argc, char** argv, bool& again) {
             std::fprintf(stderr, "WARN  Cannot write the free asset set to %s: running with placeholder shapes, no menu, no sound.\n", freeDir.c_str());
         }
     }
+    // The free set's help pages in the language now loaded (before the mods, which may replace them).
+    if (ab::isFreeAssetDir(opt.gameDir)) ab::writeFreeHelp(opt.gameDir);
     // Mod files: the mods folder is copied over the data the game plays with. On a computer
     // only into the free set or the converted copy, never into an original game folder.
 #ifdef __SWITCH__
@@ -1624,7 +1632,7 @@ int runGame(int argc, char** argv, bool& again) {
                                     audioRow = 0;
                                 }
                                 break;
-                            default:
+                            case 15:
                                 // Sound test (this implementation's): every sound file of the game data.
                                 if (key != SDLK_LEFT) {
                                     soundList = audio.catalogue();
@@ -1653,6 +1661,22 @@ int runGame(int argc, char** argv, bool& again) {
                                                              : tr("The game now uses the original graphics and sounds."));
                                 }
                                 break;
+                            case 18: {
+                                // Language: the next file of the language folder, applied at once. The text is read as
+                                // each screen draws; the pictures that carry text are made again (SpriteBank caches them).
+                                const std::string code = ab::nextLanguage(languages, opt.language, d).code;
+                                opt.language = code;
+                                cfg.language = code;
+                                ab::loadLanguage(langFolder, code);
+                                if (!opt.shapes && !opt.gameDir.empty()) {
+                                    const int shownLevel = spritesPtr->level();
+                                    spritesPtr = std::make_unique<ab::SpriteBank>();
+                                    spritesPtr->load(opt.gameDir, shownLevel);
+                                }
+                                if (ab::isFreeAssetDir(opt.gameDir)) ab::writeFreeHelp(opt.gameDir);
+                                saveSettings();
+                                break;
+                            }
                         }
                     }
                     if (key == SDLK_ESCAPE) {
@@ -2174,6 +2198,10 @@ int runGame(int argc, char** argv, bool& again) {
                 const std::string kDepth[4] = {tr("None"), tr("A Little"), tr("A Lot"), tr("All the way!")};
                 std::string folderShown = ab::folder::savedName();  // the end of it, if it is long
                 if (folderShown.size() > 26) folderShown = "..." + folderShown.substr(folderShown.size() - 23);
+                // The name of the language in use, as the language's own file names it.
+                std::string langName = "English";
+                for (const ab::LanguageChoice& choice : languages)
+                    if (choice.code == opt.language) langName = choice.name;
                 const std::string rows[kOptionRows] = {
                     std::string(tr("Team Play: ")) + kYesNo[teamPlay],
                     std::string(tr("Random Start: ")) + kYesNo[cfg.randomStart],
@@ -2192,16 +2220,17 @@ int runGame(int argc, char** argv, bool& again) {
                     tr("Adjust Audio"),                                                          // message 268
                     tr("Sound Test"),
                     tr("Original Game Data: ") + (folderShown.empty() ? std::string(tr("Choose Folder")) : folderShown),
-                    std::string(tr("Graphics And Sound: ")) + (ab::isFreeAssetDir(opt.gameDir) ? tr("Free") : tr("Original"))};
+                    std::string(tr("Graphics And Sound: ")) + (ab::isFreeAssetDir(opt.gameDir) ? tr("Free") : tr("Original")),
+                    std::string(tr("Language: ")) + langName};
                 renderer.begin(w, h);
                 renderer.image(spritesPtr->picture("glue" + std::to_string(optionsGlue)));
                 for (int r = 0; r < kOptionRows; ++r) {
-                    const float y = 40.0f + 22.0f * static_cast<float>(r);
-                    renderer.text(*spritesPtr, rows[r], 56, y + 1, 0, 0, 0);
-                    renderer.text(*spritesPtr, rows[r], 55, y, r == optionRow ? 1.0f : 0.85f, r == optionRow ? 0.95f : 0.85f, r == optionRow ? 0.3f : 0.85f);
+                    const float y = ab::options::rowY(r);
+                    renderer.text(*spritesPtr, rows[r], ab::options::kTextX + 1, y + 1, 0, 0, 0);
+                    renderer.text(*spritesPtr, rows[r], ab::options::kTextX, y, r == optionRow ? 1.0f : 0.85f, r == optionRow ? 0.95f : 0.85f, r == optionRow ? 0.3f : 0.85f);
                 }
-                renderer.sprite(*spritesPtr, "cursor1", frame / 8, -1, 41.0f, 55.0f + 22.0f * static_cast<float>(optionRow));
-                renderer.text(*spritesPtr, tr("Up/Down: select   Left/Right: change   Esc: done"), 60, 440, 0.4f, 1.0f, 1.0f);
+                renderer.sprite(*spritesPtr, "cursor1", frame / 8, -1, ab::options::kTextX - 14.0f, ab::options::rowY(optionRow) + 15.0f);
+                renderer.text(*spritesPtr, tr("Up/Down: select   Left/Right: change   Esc: done"), 60, ab::options::kHintY, 0.4f, 1.0f, 1.0f);
                 renderer.end();
             } else if (screen == Screen::LevelSetup) {
                 const int shownLevel = randomLevel ? -1 : level;

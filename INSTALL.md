@@ -103,6 +103,8 @@ Start the program with no arguments. It looks for the game data in this order an
 
 The terminal prints `INFO  Game files: …` with the folder in use. If none of these has the original data, the free asset set is used (`--free` chooses it on purpose).
 
+The text language is English unless **Options → Language** or `--language CODE` chooses another. The translation files are read from the per-user `lang` folder, or from the folder given by `--lang-dir DIR`; for Ukrainian, copy `data/lang/uk.json` there.
+
 Controls and options are in `README.md`.
 
 ## Troubleshooting

@@ -5,6 +5,7 @@
 #include <sstream>
 
 #include "game/values.hpp"
+#include "resources/lang.hpp"
 #include "resources/scheme_file.hpp"
 
 namespace ab {
@@ -166,81 +167,80 @@ const Campaign kCampaigns[] = {
      "-C,Rush Hour,10,open,6,600,6,190,3,50\n"},
 };
 
-const char* const kManual =
-    "ATOMIC BOMBERMAN - MODERN\n"
-    "Manual of the free asset set\n"
-    "\n"
-    "You are playing with the free graphics, sounds and arenas that come\n"
-    "with this program. If you own the original Atomic Bomberman you can\n"
-    "import its data instead: atomic --import-assets PATH (see INSTALL.md).\n"
-    "\n"
-    "THE GAME\n"
-    "Drop bombs, get out of the way, and be the last one standing.\n"
-    "Bombs burst after two seconds in a cross of flame. Flames destroy\n"
-    "bricks, set off other bombs and knock out anyone they touch,\n"
-    "including whoever laid the bomb. Solid blocks stop them.\n"
-    "When the clock runs low the walls start closing in.\n"
-    "\n"
-    "KEYS\n"
-    "Player on KEY 0:  arrow keys, Space = bomb, Enter = action\n"
-    "Player on KEY 1:  R D F G, S = bomb, A = action\n"
-    "Change them under Options, Define keyboard layouts.\n"
-    "In a match: Esc leaves, P pauses, F1 shows these pages.\n"
-    "\n"
-    "POWERUPS (hidden under bricks)\n"
-    "Bomb         one more bomb at a time\n"
-    "Flame        longer flames\n"
-    "Gold flame   flames as long as the field\n"
-    "Skate        faster\n"
-    "Boot         walk into a bomb to kick it; action stops it\n"
-    "Glove        action punches the bomb in front of you over a block\n"
-    "Hand         bomb button on your own bomb picks it up; let go to throw\n"
-    "Row of bombs bomb button on your own bomb lays a line of them\n"
-    "Red button   your bombs wait for the action button\n"
-    "Jelly        your kicked bombs bounce off walls\n"
-    "Skull        a disease: slow, fast, no bombs, short fuse, reversed\n"
-    "             keys and more. It wears off, and it is catching.\n"
-    "Weight       slower\n"
-    "?            any of the above\n"
-    "\n"
-    "LEVELS\n"
-    "Some levels have arrows that turn kicked bombs, moving belts,\n"
-    "springs that throw you into the air and holes that take you\n"
-    "somewhere else. On the ice rink you keep sliding for a moment.\n"
-    "\n"
-    "NETWORK GAMES\n"
-    "Start Network Game makes you the host; the others choose\n"
-    "Join Network Game. Type to chat in the lobby, T in a match.\n"
-    "\n"
-    "HIDDEN\n"
-    "Ctrl-E six times on the main menu opens the arena editor.\n"
-    "C five times on the player list opens campaign mode: stages\n"
-    "against rovers (they keep to the open ground) and ghosts (they\n"
-    "drift through bricks). Clear every enemy to go on. Three\n"
-    "campaigns come with the free set: first-steps, night-shift\n"
-    "and gauntlet.\n";
+// The help pages, one tr() per section: each section is one key in the language table, and
+// tools/i18n/extract_strings.py reads one literal per call. The English text is the same as
+// before. Written by writeFreeHelp, in the language loaded at that time.
+std::string manualText() {
+    return tr("ATOMIC BOMBERMAN - MODERN\nManual of the free asset set\n\n") +
+           tr("You are playing with the free graphics, sounds and arenas that come\n"
+              "with this program. If you own the original Atomic Bomberman you can\n"
+              "import its data instead: atomic --import-assets PATH (see INSTALL.md).\n\n") +
+           tr("THE GAME\n"
+              "Drop bombs, get out of the way, and be the last one standing.\n"
+              "Bombs burst after two seconds in a cross of flame. Flames destroy\n"
+              "bricks, set off other bombs and knock out anyone they touch,\n"
+              "including whoever laid the bomb. Solid blocks stop them.\n"
+              "When the clock runs low the walls start closing in.\n\n") +
+           tr("KEYS\n"
+              "Player on KEY 0:  arrow keys, Space = bomb, Enter = action\n"
+              "Player on KEY 1:  R D F G, S = bomb, A = action\n"
+              "Change them under Options, Define keyboard layouts.\n"
+              "In a match: Esc leaves, P pauses, F1 shows these pages.\n\n") +
+           tr("POWERUPS (hidden under bricks)\n"
+              "Bomb         one more bomb at a time\n"
+              "Flame        longer flames\n"
+              "Gold flame   flames as long as the field\n"
+              "Skate        faster\n"
+              "Boot         walk into a bomb to kick it; action stops it\n"
+              "Glove        action punches the bomb in front of you over a block\n"
+              "Hand         bomb button on your own bomb picks it up; let go to throw\n"
+              "Row of bombs bomb button on your own bomb lays a line of them\n"
+              "Red button   your bombs wait for the action button\n"
+              "Jelly        your kicked bombs bounce off walls\n"
+              "Skull        a disease: slow, fast, no bombs, short fuse, reversed\n"
+              "             keys and more. It wears off, and it is catching.\n"
+              "Weight       slower\n"
+              "?            any of the above\n\n") +
+           tr("LEVELS\n"
+              "Some levels have arrows that turn kicked bombs, moving belts,\n"
+              "springs that throw you into the air and holes that take you\n"
+              "somewhere else. On the ice rink you keep sliding for a moment.\n\n") +
+           tr("NETWORK GAMES\n"
+              "Start Network Game makes you the host; the others choose\n"
+              "Join Network Game. Type to chat in the lobby, T in a match.\n\n") +
+           tr("HIDDEN\n"
+              "Ctrl-E six times on the main menu opens the arena editor.\n"
+              "C five times on the player list opens campaign mode: stages\n"
+              "against rovers (they keep to the open ground) and ghosts (they\n"
+              "drift through bricks). Clear every enemy to go on. Three\n"
+              "campaigns come with the free set: first-steps, night-shift\n"
+              "and gauntlet.\n");
+}
 
-const char* const kCredits =
-    "ATOMIC BOMBERMAN - MODERN\n"
-    "\n"
-    "A new program that plays by the rules of Atomic Bomberman\n"
-    "(Interplay, 1997), worked out by studying the original.\n"
-    "\n"
-    "It is an unofficial fan project and is not connected with\n"
-    "Interplay, Hudson Soft or Konami.\n"
-    "\n"
-    "You are seeing the free asset set: its pictures, sounds, music\n"
-    "and arenas are made by this program's own code and contain\n"
-    "nothing from the original game. Like the program they are\n"
-    "free software under the GNU General Public License, version 3\n"
-    "or later.\n"
-    "\n"
-    "Source and documentation:\n"
-    "github.com/elraro/atomic-bomberman\n";
+std::string creditsText() {
+    return tr("ATOMIC BOMBERMAN - MODERN\n\n") +
+           tr("A new program that plays by the rules of Atomic Bomberman\n"
+              "(Interplay, 1997), worked out by studying the original.\n\n") +
+           tr("It is an unofficial fan project and is not connected with\n"
+              "Interplay, Hudson Soft or Konami.\n\n") +
+           tr("You are seeing the free asset set: its pictures, sounds, music\n"
+              "and arenas are made by this program's own code and contain\n"
+              "nothing from the original game. Like the program they are\n"
+              "free software under the GNU General Public License, version 3\n"
+              "or later.\n\n") +
+           tr("Source and documentation:\n"
+              "github.com/elraro/atomic-bomberman\n");
+}
 
 }  // namespace
 
 bool isFreeAssetDir(const std::string& dir) { return std::ifstream(dir + "/free-assets.txt").good(); }
+
+bool writeFreeHelp(const std::string& dir) {
+    const std::filesystem::path root(dir);
+    const bool manual = writeText(root / "manual.bm", manualText());
+    return writeText(root / "credits.bm", creditsText()) && manual;
+}
 
 bool ensureFreeAssets(const std::string& dir, bool withSounds) {
     namespace fs = std::filesystem;
@@ -267,8 +267,7 @@ bool ensureFreeAssets(const std::string& dir, bool withSounds) {
     for (int level = 0; level < 11; ++level)
         ok = writeText(root / "data" / "res" / ("extra" + std::to_string(level) + ".res"), kExtras[level]) && ok;
     for (const Campaign& c : kCampaigns) ok = writeText(root / "data" / "res" / (std::string(c.file) + ".cam"), c.text) && ok;
-    ok = writeText(root / "manual.bm", kManual) && ok;
-    ok = writeText(root / "credits.bm", kCredits) && ok;
+    ok = writeFreeHelp(dir) && ok;
 
     if (withSounds) {
         const FreeSounds sounds = makeFreeSounds();

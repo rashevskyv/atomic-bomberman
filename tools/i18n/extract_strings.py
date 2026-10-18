@@ -7,8 +7,10 @@ Usage:
 The template maps each English text to itself: it is the list of keys a translation
 must cover. --check fails when en.json is out of date, when a translation has a key
 the code does not use, or when its placeholders ({0}, {1}, ...) differ from the English.
-Only the literal first argument of tr() and trf() is read; text built at run time is
-not, so such text cannot be translated (say so in a comment where it is built).
+Keys that start with "_" in a translation are metadata (e.g. "_language_name"), not texts.
+Only the literal argument of tr() and trf() is read (one literal, or several adjacent
+ones); text built at run time is not, so such text cannot be translated (say so in a
+comment where it is built).
 """
 import glob
 import json
@@ -18,7 +20,9 @@ import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 SOURCE_DIRS = ("src",)
-CALL = re.compile(r'\btrf?\(\s*"((?:[^"\\\n]|\\.)*)"')
+LITERAL = re.compile(r'"((?:[^"\\\n]|\\.)*)"')
+# One call's argument: one literal, or several adjacent ones (the compiler joins them).
+CALL = re.compile(r'\btrf?\(\s*((?:"(?:[^"\\\n]|\\.)*"\s*)+)')
 PLACEHOLDER = re.compile(r"\{(\d+)\}")
 ESCAPES = {"n": "\n", "t": "\t", "r": "\r", '"': '"', "\\": "\\", "'": "'"}
 
@@ -48,7 +52,8 @@ def english_texts():
                 with open(path, encoding="utf-8") as f:
                     code = "\n".join(line for line in f.read().split("\n") if not line.lstrip().startswith("//"))
                     for m in CALL.finditer(code):
-                        found.setdefault(decode(m.group(1)), os.path.relpath(path, ROOT).replace(os.sep, "/"))
+                        text = "".join(decode(lit) for lit in LITERAL.findall(m.group(1)))
+                        found.setdefault(text, os.path.relpath(path, ROOT).replace(os.sep, "/"))
     return found
 
 
@@ -76,6 +81,8 @@ def check(texts):
             table = json.load(f)
         name = os.path.basename(lang)
         for key, value in table.items():
+            if key.startswith("_"):  # metadata, not a text: "_language_name" is the language's own name
+                continue
             if key not in texts:
                 problems.append(f"{name}: key not used by the code: {key[:60]!r}")
                 continue

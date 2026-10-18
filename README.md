@@ -111,6 +111,8 @@ The program opens on the main menu. Choose **Start Game**, set up the player lis
 
 These are the original's default keys. Change them under **Options → Define keyboard layouts**.
 
+**Language.** The last row of **Options**, *Language*, chooses the text language with Left and Right. The change applies at once and is saved in `options.ini` as `language=`. English is always offered. Each other language is a file `CODE.json` in the language folder: the per-user `lang` folder, or the folder given by `--lang-dir DIR`. The file names its language with the key `_language_name` (`uk.json` says `Українська`). `--language CODE` chooses a language for one run; the menus show what the file holds, and any text missing from it stays English. The free asset set's manual and credits follow the language. The text baked into the original game's pictures stays as it is. Translators: `tools/i18n/extract_strings.py --check` checks a file against the program's texts.
+
 Connected gamepads appear in the player list as `JOY n` (left stick or d-pad to move, A / cross to bomb, B or X / circle or square for the action). A gamepad also works the menus: d-pad or left stick for the arrows, A to confirm, B to go back, Start for the way out of a local match and for the menu of a network match. A gamepad plugged in while the game runs is taken up. Gamepad support is untested with a real controller: none was available, and the checks press the buttons by script.
 
 The action button punches the bomb ahead (punch), stops your kicked bombs (kicker) and detonates trigger bombs. Pressing the bomb button while standing on your own bomb picks it up (grab; release to throw) or lays a line (spooge).
@@ -181,6 +183,7 @@ A few things learned along the way:
 | `src/resources/` | Readers for the original's file formats, and the asset importer |
 | `android/` | The Android app: Gradle project and manifest around the same C++ code |
 | `src/free/` | The free asset set: graphics, sounds, music and arenas made by code |
+| `data/lang/` | The texts of the program: `en.json` (all keys, made by `tools/i18n/extract_strings.py`) and the translations, such as `uk.json` |
 | `src/net/`, `src/server/` | Network mode: sockets, protocol, server, client; the dedicated server program |
 | `tests/unit/` | Tests that encode the specified rules |
 | `tools/asset-extractor/` | Python reader and extractor for `.ani` sprite files |

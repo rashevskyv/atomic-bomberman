@@ -18,6 +18,9 @@ bool isFreeAssetDir(const std::string& dir);
 // leaves the sounds out (the dedicated server needs none). False if the folder
 // cannot be written.
 bool ensureFreeAssets(const std::string& dir, bool withSounds);
+// Writes manual.bm and credits.bm into `dir`, in the language now loaded (tr()). Called when the
+// set is written and again at start and on a language change: the marker does not cover them.
+bool writeFreeHelp(const std::string& dir);
 
 // The sounds: file name -> mono samples at 22050 Hz, and the list "id -> name".
 struct FreeSounds {

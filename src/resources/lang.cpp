@@ -1,10 +1,13 @@
 #include "resources/lang.hpp"
 
+#include <algorithm>
 #include <cctype>
 #include <cstddef>
 #include <cstdio>
+#include <filesystem>
 #include <fstream>
 #include <sstream>
+#include <system_error>
 
 namespace ab {
 
@@ -115,14 +118,24 @@ bool parseLanguageTable(const std::string& json, LanguageTable& out) {
     }
 }
 
+namespace {
+
+// A language code is a plain name: no paths.
+bool plainCode(const std::string& code) {
+    for (const char c : code)
+        if (!std::isalnum(static_cast<unsigned char>(c)) && c != '-' && c != '_') return false;
+    return true;
+}
+
+}  // namespace
+
 bool loadLanguage(const std::string& dir, const std::string& code) {
     clearLanguage();
     if (code.empty() || code == "en") return true;
-    for (const char c : code)  // a language code is a plain name: no paths
-        if (!std::isalnum(static_cast<unsigned char>(c)) && c != '-' && c != '_') {
-            std::fprintf(stderr, "WARN  Language code \"%s\" is not a plain name: English is used.\n", code.c_str());
-            return false;
-        }
+    if (!plainCode(code)) {
+        std::fprintf(stderr, "WARN  Language code \"%s\" is not a plain name: English is used.\n", code.c_str());
+        return false;
+    }
     const std::string path = dir + "/" + code + ".json";
     std::ifstream in(path, std::ios::binary);
     if (!in) {
@@ -142,6 +155,43 @@ bool loadLanguage(const std::string& dir, const std::string& code) {
 }
 
 void clearLanguage() { table().clear(); }
+
+std::vector<LanguageChoice> listLanguages(const std::string& dir) {
+    namespace fs = std::filesystem;
+    std::vector<std::string> codes;
+    std::error_code ec;
+    fs::directory_iterator it(dir, ec);
+    for (; !ec && it != fs::directory_iterator(); it.increment(ec)) {
+        const std::string file = it->path().filename().string();
+        if (file.size() > 5 && file.compare(file.size() - 5, 5, ".json") == 0) codes.push_back(file.substr(0, file.size() - 5));
+    }
+    std::sort(codes.begin(), codes.end());
+    std::vector<LanguageChoice> out{{"", "English"}};
+    for (const std::string& code : codes) {
+        if (code.empty() || code == "en" || !plainCode(code)) continue;  // English is always there, from the program
+        std::ifstream in(dir + "/" + code + ".json", std::ios::binary);
+        std::ostringstream text;
+        text << in.rdbuf();
+        LanguageTable parsed;
+        if (!in || !parseLanguageTable(text.str(), parsed)) continue;
+        const auto named = parsed.find("_language_name");
+        out.push_back({code, named != parsed.end() && !named->second.empty() ? named->second : code});
+    }
+    return out;
+}
+
+const LanguageChoice& nextLanguage(const std::vector<LanguageChoice>& choices, const std::string& code, int direction) {
+    static const LanguageChoice kEnglish{"", "English"};
+    if (choices.empty()) return kEnglish;
+    std::size_t at = 0;  // a code that is not in the list counts as English
+    for (std::size_t i = 0; i < choices.size(); ++i)
+        if (choices[i].code == code) {
+            at = i;
+            break;
+        }
+    const std::size_t n = choices.size();
+    return choices[direction < 0 ? (at + n - 1) % n : (at + 1) % n];
+}
 
 std::string tr(const std::string& english) {
     const auto& t = table();

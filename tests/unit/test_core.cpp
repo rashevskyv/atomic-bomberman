@@ -7,6 +7,7 @@
 #include <cstdlib>
 #include <fstream>
 #include <functional>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -20,6 +21,7 @@
 #include "resources/campaign_file.hpp"
 #include "resources/help_file.hpp"
 #include "app/mods.hpp"
+#include "app/options_layout.hpp"
 #include "resources/lang.hpp"
 #include "resources/mve_file.hpp"
 #include "resources/unused_voices.hpp"
@@ -2382,6 +2384,42 @@ void testLanguage() {
     CHECK(!loadLanguage(dir.string(), "../uk"));                        // a code is a plain name
     CHECK(loadLanguage(dir.string(), "en"));
     CHECK(tr("Sound Test") == "Sound Test");
+
+    // The Options menu's choices: English, then the valid files by code, each named by its "_language_name".
+    { std::ofstream(dir / "uk.json", std::ios::binary) << "{\"_language_name\": \"Українська\", \"Players\": \"Гравці\"}"; }
+    { std::ofstream(dir / "de.json", std::ios::binary) << "{\"Players\": \"Spieler\"}"; }   // no name: its code
+    { std::ofstream(dir / "fr.json", std::ios::binary) << "{\"_language_name\": 3}"; }      // not a table of strings: skipped
+    { std::ofstream(dir / "en.json", std::ios::binary) << "{}"; }                           // English is the program's own
+    { std::ofstream(dir / "notes.txt", std::ios::binary) << "{}"; }                         // not a language file
+    const std::vector<LanguageChoice> choices = listLanguages(dir.string());
+    CHECK_EQ(choices.size(), 3u);  // English, de, uk (fr, bad, en and notes are not offered)
+    CHECK(choices[0].code.empty() && choices[0].name == "English");
+    CHECK(choices[1].code == "de" && choices[1].name == "de");
+    CHECK(choices[2].code == "uk" && choices[2].name == "Українська");
+    CHECK(nextLanguage(choices, "", 1).code == "de");
+    CHECK(nextLanguage(choices, "uk", 1).code.empty());               // wraps round to English
+    CHECK(nextLanguage(choices, "", -1).code == "uk");                 // and back
+    CHECK(nextLanguage(choices, "fi", 1).code == "de");                // not in the list: counts as English
+    CHECK(nextLanguage({}, "uk", 1).code.empty());                     // no list at all: English
+
+    // The free set's help pages are written in the language now loaded.
+    { std::ofstream(dir / "uk.json", std::ios::binary) << "{\"ATOMIC BOMBERMAN - MODERN\\n\\n\": \"ТЕСТ\\n\\n\"}"; }
+    CHECK(loadLanguage(dir.string(), "uk"));
+    CHECK(writeFreeHelp(dir.string()));
+    {
+        std::ifstream credits(dir / "credits.bm", std::ios::binary);
+        std::ostringstream text;
+        text << credits.rdbuf();
+        CHECK(text.str().rfind("ТЕСТ\n\n", 0) == 0);
+    }
+    CHECK(loadLanguage(dir.string(), ""));
+    CHECK(writeFreeHelp(dir.string()));
+    {
+        std::ifstream credits(dir / "credits.bm", std::ios::binary);
+        std::ostringstream text;
+        text << credits.rdbuf();
+        CHECK(text.str().rfind("ATOMIC BOMBERMAN - MODERN\n\nA new program", 0) == 0);
+    }
     std::filesystem::remove_all(dir);  // the test's own folder
 
     Settings s;
@@ -2391,6 +2429,24 @@ void testLanguage() {
     Settings reread;
     reread.parse(s.serialize());
     CHECK(reread.language == "uk");
+    // The choice made in the Options menu is saved to options.ini and read back.
+    const std::filesystem::path ini = std::filesystem::temp_directory_path() / "ab-options-language.ini";
+    Settings chosen;
+    chosen.language = "uk";
+    CHECK(chosen.save(ini.string()));
+    Settings loaded;
+    CHECK(loaded.load(ini.string()));
+    CHECK(loaded.language == "uk");
+    std::filesystem::remove(ini);
+}
+
+void testOptionsLayout() {
+    using namespace ab::options;
+    CHECK_EQ(kLanguageRow, kRows - 1);  // the language row is the last one, after the original's rows
+    // Each row's text (up to 16 px tall, the largest font) ends above the key hint, and each row starts
+    // on the screen.
+    CHECK(rowY(kRows - 1) + 16.0f <= kHintY);
+    CHECK(rowY(0) >= 0.0f && kTextX + 580.0f <= kTextRight);
 }
 
 void testModsCopy() {
@@ -2453,6 +2509,7 @@ void testUkrainianLetters() {
 int main() {
     const std::vector<std::pair<std::string, std::function<void()>>> tests = {
         {"language", testLanguage},
+        {"options layout", testOptionsLayout},
         {"ukrainian letters", testUkrainianLetters},
         {"mods copy", testModsCopy},
         {"geometry", testGeometry},

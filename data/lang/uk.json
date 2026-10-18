@@ -1,4 +1,5 @@
 {
+    "_language_name": "Українська",
     "KEY 0": "КЛАВІША 0",
     "KEY 1": "КЛАВІША 1",
     "AI": "ШІ",
@@ -306,7 +307,7 @@
     "Schemfile: ": "Файл схеми: ",
     " - Name: '": " - Назва: '",
     "Brick Density: ": "Щільність цегли: ",
-    "Schemefile Editing - press F1 for editor help": "Редагування схеми: F1 — довідка редактора",
+    "Schemefile Editing - press F1 for editor help": "Редагування схеми: F1: довідка редактора",
     "Powertype table modifier editor": "Редактор таблиці типів бонусів",
     "'   Bornwith: ": "'   Поява: ",
     ", Forbid: ": ", заборона: ",
@@ -366,5 +367,19 @@
     "Action 1": "Дія 1",
     "Action 2": "Дія 2",
     "Copy the original game to the SD card:": "Скопіюйте оригінальну гру на карту SD:",
-    "It is converted at the next start.": "Її буде перетворено при наступному запуску."
+    "It is converted at the next start.": "Її буде перетворено при наступному запуску.",
+    "Language: ": "Мова: ",
+    "ATOMIC BOMBERMAN - MODERN\nManual of the free asset set\n\n": "ATOMIC BOMBERMAN - MODERN\nПосібник до безкоштовного набору ресурсів\n\n",
+    "You are playing with the free graphics, sounds and arenas that come\nwith this program. If you own the original Atomic Bomberman you can\nimport its data instead: atomic --import-assets PATH (see INSTALL.md).\n\n": "Ви граєте з безкоштовною графікою, звуками та аренами,\nщо входять до цієї програми. Якщо у вас є оригінальна гра\nAtomic Bomberman, можна імпортувати її дані:\natomic --import-assets ШЛЯХ (див. INSTALL.md).\n\n",
+    "THE GAME\nDrop bombs, get out of the way, and be the last one standing.\nBombs burst after two seconds in a cross of flame. Flames destroy\nbricks, set off other bombs and knock out anyone they touch,\nincluding whoever laid the bomb. Solid blocks stop them.\nWhen the clock runs low the walls start closing in.\n\n": "ГРА\nСтавте бомби, ухиляйтеся й будьте останнім, хто лишився.\nБомба вибухає через дві секунди хрестом полум'я. Полум'я руйнує\nцеглу, підриває інші бомби й збиває кожного, кого торкнеться,\nзокрема того, хто поставив бомбу. Тверді блоки його зупиняють.\nКоли час спливає, стіни починають стискатися.\n\n",
+    "KEYS\nPlayer on KEY 0:  arrow keys, Space = bomb, Enter = action\nPlayer on KEY 1:  R D F G, S = bomb, A = action\nChange them under Options, Define keyboard layouts.\nIn a match: Esc leaves, P pauses, F1 shows these pages.\n\n": "КЛАВІШІ\nГравець на КЛАВІШІ 0:  стрілки, Пробіл = бомба, Enter = дія\nГравець на КЛАВІШІ 1:  R D F G, S = бомба, A = дія\nЗмінити: Налаштування, Розкладки клавіатури.\nУ матчі: Esc: вихід, P: пауза, F1: показати ці сторінки.\n\n",
+    "POWERUPS (hidden under bricks)\nBomb         one more bomb at a time\nFlame        longer flames\nGold flame   flames as long as the field\nSkate        faster\nBoot         walk into a bomb to kick it; action stops it\nGlove        action punches the bomb in front of you over a block\nHand         bomb button on your own bomb picks it up; let go to throw\nRow of bombs bomb button on your own bomb lays a line of them\nRed button   your bombs wait for the action button\nJelly        your kicked bombs bounce off walls\nSkull        a disease: slow, fast, no bombs, short fuse, reversed\n             keys and more. It wears off, and it is catching.\nWeight       slower\n?            any of the above\n\n": "БОНУСИ (сховані під цеглою)\nБомба        ще одна бомба одночасно\nВогонь       довші полум'я\nЗолотий вогонь  полум'я на все поле\nКовзан       швидше\nЧобіт        ідіть на бомбу, щоб її вдарити; дія її зупиняє\nРукавичка    дія відкидає бомбу перед вами через блок\nРука         кнопка бомби на вашій бомбі піднімає її; щоб кинути, відпустіть\nРяд бомб     кнопка бомби на вашій бомбі ставить ряд бомб\nЧервона кнопка  ваші бомби чекають на кнопку дії\nЖеле         ваші вдарені бомби відскакують від стін\nЧереп        хвороба: повільно, швидко, без бомб, короткий запал,\n             обернене керування та інше. Вона минає, але заразна.\nВага         повільніше\n?            будь-що з переліченого\n\n",
+    "LEVELS\nSome levels have arrows that turn kicked bombs, moving belts,\nsprings that throw you into the air and holes that take you\nsomewhere else. On the ice rink you keep sliding for a moment.\n\n": "РІВНІ\nДеякі рівні мають стрілки, які повертають вдарені бомби, рухомі\nстрічки, пружини, що кидають вас угору, і діри, які переносять вас\nв інше місце. На ковзанці ви ще якийсь час ковзаєте.\n\n",
+    "NETWORK GAMES\nStart Network Game makes you the host; the others choose\nJoin Network Game. Type to chat in the lobby, T in a match.\n\n": "МЕРЕЖЕВА ГРА\nПочати мережеву гру: ви станете хостом, інші обирають\nПриєднатися до мережевої гри. У лобі пишіть у чат, у матчі: T.\n\n",
+    "HIDDEN\nCtrl-E six times on the main menu opens the arena editor.\nC five times on the player list opens campaign mode: stages\nagainst rovers (they keep to the open ground) and ghosts (they\ndrift through bricks). Clear every enemy to go on. Three\ncampaigns come with the free set: first-steps, night-shift\nand gauntlet.\n": "ПРИХОВАНЕ\nCtrl-E шість разів у головному меню відкриває редактор арен.\nC п'ять разів у списку гравців відкриває режим кампанії: етапи\nпроти розвідників (вони тримаються відкритої місцевості) і привидів\n(вони проходять крізь цеглу). Щоб рухатися далі, переможіть усіх ворогів.\nУ набір входять три кампанії: first-steps, night-shift і gauntlet.\n",
+    "ATOMIC BOMBERMAN - MODERN\n\n": "ATOMIC BOMBERMAN - MODERN\n\n",
+    "A new program that plays by the rules of Atomic Bomberman\n(Interplay, 1997), worked out by studying the original.\n\n": "Нова програма, яка працює за правилами Atomic Bomberman\n(Interplay, 1997), створена після вивчення оригіналу.\n\n",
+    "It is an unofficial fan project and is not connected with\nInterplay, Hudson Soft or Konami.\n\n": "Це неофіційний фанатський проєкт, не пов'язаний з\nInterplay, Hudson Soft чи Konami.\n\n",
+    "You are seeing the free asset set: its pictures, sounds, music\nand arenas are made by this program's own code and contain\nnothing from the original game. Like the program they are\nfree software under the GNU General Public License, version 3\nor later.\n\n": "Ви бачите безкоштовний набір ресурсів: його малюнки, звуки,\nмузику й арени створює код цієї програми. Вони не містять\nнічого з оригінальної гри. Як і програма, вони є вільним\nпрограмним забезпеченням за GNU General Public License,\nверсія 3 або новіша.\n\n",
+    "Source and documentation:\ngithub.com/elraro/atomic-bomberman\n": "Вихідний код і документація:\ngithub.com/elraro/atomic-bomberman\n"
 }
