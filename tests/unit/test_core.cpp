@@ -19,6 +19,7 @@
 #include "game/world.hpp"
 #include "resources/campaign_file.hpp"
 #include "resources/help_file.hpp"
+#include "app/mods.hpp"
 #include "resources/lang.hpp"
 #include "resources/mve_file.hpp"
 #include "resources/unused_voices.hpp"
@@ -2392,6 +2393,30 @@ void testLanguage() {
     CHECK(reread.language == "uk");
 }
 
+void testModsCopy() {
+    namespace fs = std::filesystem;
+    const fs::path root = fs::temp_directory_path() / "ab-mods-test";
+    fs::remove_all(root);
+    const fs::path mods = root / "mods", target = root / "assets";
+    fs::create_directories(mods / "data" / "schemes");
+    fs::create_directories(target / "data" / "schemes");
+    { std::ofstream(target / "data" / "schemes" / "BASIC.SCH", std::ios::binary) << "original"; }
+    { std::ofstream(mods / "data" / "schemes" / "MY.SCH", std::ios::binary) << "level"; }
+    CHECK_EQ(applyMods(mods.string(), target.string()), 1);
+    CHECK(fs::exists(mods / "README.txt"));                                   // the note is made once
+    CHECK(fs::exists(target / "data" / "schemes" / "MY.SCH"));
+    CHECK_EQ(applyMods(mods.string(), target.string()), 0);                   // same size and not older: nothing to do
+    { std::ofstream(mods / "data" / "schemes" / "MY.SCH", std::ios::binary) << "a longer level"; }
+    CHECK_EQ(applyMods(mods.string(), target.string()), 1);                   // changed: copied again
+    auto readAll = [](const fs::path& p) {
+        std::ifstream in(p, std::ios::binary);
+        return std::string((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+    };
+    CHECK(readAll(target / "data" / "schemes" / "MY.SCH") == "a longer level");
+    CHECK(readAll(target / "data" / "schemes" / "BASIC.SCH") == "original");  // files not in the mods are not touched
+    fs::remove_all(root);
+}
+
 void testUkrainianLetters() {
     CHECK_EQ(glyphFor(U'А'), 174);
     CHECK_EQ(glyphFor(U'Ї'), 186);  // the 13th capital of the alphabet
@@ -2429,6 +2454,7 @@ int main() {
     const std::vector<std::pair<std::string, std::function<void()>>> tests = {
         {"language", testLanguage},
         {"ukrainian letters", testUkrainianLetters},
+        {"mods copy", testModsCopy},
         {"geometry", testGeometry},
         {"asset import", testAssetImport},
         {"values parser", testValuesParser},

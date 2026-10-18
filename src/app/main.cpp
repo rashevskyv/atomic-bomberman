@@ -570,8 +570,12 @@ int runGame(int argc, char** argv, bool& again) {
             std::fprintf(stderr, "WARN  Cannot write the free asset set to %s: running with placeholder shapes, no menu, no sound.\n", freeDir.c_str());
         }
     }
+    // Mod files: the mods folder is copied over the data the game plays with. On a computer
+    // only into the free set or the converted copy, never into an original game folder.
 #ifdef __SWITCH__
     if (!opt.gameDir.empty()) ab::applyMods(std::string(abx::kHome) + "mods", opt.gameDir);
+#else
+    if (!opt.gameDir.empty() && (ab::isFreeAssetDir(opt.gameDir) || opt.gameDir == userAssetsDir())) ab::applyMods(userFile("mods"), opt.gameDir);
 #endif
     if (!opt.gameDir.empty()) {
         std::fprintf(stderr, "INFO  Game files: %s%s\n", opt.gameDir.c_str(), ab::isFreeAssetDir(opt.gameDir) ? " (free asset set)" : "");

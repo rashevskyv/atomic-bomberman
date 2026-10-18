@@ -40,7 +40,7 @@ ab_warnings(ab_game)
 # Readers for the original game's data files (legacy formats stay out of the core).
 add_library(ab_resources src/resources/scheme_file.cpp src/resources/ani_file.cpp src/resources/asset_import.cpp
     src/resources/settings.cpp src/resources/help_file.cpp src/resources/campaign_file.cpp src/resources/mve_file.cpp
-    src/resources/unused_voices.cpp src/resources/lang.cpp)
+    src/resources/unused_voices.cpp src/resources/lang.cpp src/app/mods.cpp)
 target_link_libraries(ab_resources PUBLIC ab_game)
 ab_warnings(ab_resources)
 
@@ -208,7 +208,6 @@ if(SDL3_FOUND)
         src/app/pad_keys.cpp
         src/app/screen_keyboard.cpp
         src/app/import_screen.cpp
-        src/app/mods.cpp
         src/app/original_folder.cpp
         src/rendering/gl.cpp
         src/rendering/renderer.cpp
