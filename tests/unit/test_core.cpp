@@ -2408,7 +2408,7 @@ void testUkrainianLetters() {
     const FreeFont font = makeFreeFont();
     std::vector<bool> used(256, false);
     int letters = 0;
-    for (const std::u32string set : {std::u32string(U"АБВГҐДЕЄЖЗИІЇЙКЛМНОПРСТУФХЦЧШЩЬЮЯ"), std::u32string(U"абвгґдеєжзиіїйклмнопрстуфхцчшщьюя")})
+    for (const std::u32string& set : {std::u32string(U"АБВГҐДЕЄЖЗИІЇЙКЛМНОПРСТУФХЦЧШЩЬЮЯ"), std::u32string(U"абвгґдеєжзиіїйклмнопрстуфхцчшщьюя")})
         for (const char32_t c : set) {
             const int slot = glyphFor(c);
             ++letters;

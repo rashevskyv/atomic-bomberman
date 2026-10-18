@@ -1,5 +1,7 @@
 #include "resources/settings.hpp"
 
+#include "resources/lang.hpp"
+
 #include <algorithm>
 #include <array>
 #include <cctype>
@@ -123,7 +125,7 @@ int Settings::nextPlayTime(int current, int direction) {
 }
 
 std::string Settings::playTimeText(int seconds) {
-    if (seconds >= kInfiniteTime) return "Infinite";  // message 280
+    if (seconds >= kInfiniteTime) return tr("Infinite");  // message 280
     char buffer[16];
     std::snprintf(buffer, sizeof buffer, "%d:%02d", seconds / 60, seconds % 60);  // message 281
     return buffer;

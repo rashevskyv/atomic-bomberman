@@ -1,9 +1,12 @@
+#include "resources/lang.hpp"
 #include "app/original_folder.hpp"
 
 #ifdef __ANDROID__
 
 #include <SDL3/SDL.h>
 #include <jni.h>
+
+using ab::tr;
 
 namespace ab::folder {
 
@@ -81,7 +84,7 @@ Staging staging() {
     jmethodID id = c.method("stagingState", "()[I");
     if (id == nullptr) {
         out.state = Staging::State::Failed;
-        out.error = "the folder chooser is not available";
+        out.error = tr("the folder chooser is not available");
         return out;
     }
     auto array = static_cast<jintArray>(c.env->CallStaticObjectMethod(c.cls, id));

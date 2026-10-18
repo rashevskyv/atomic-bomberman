@@ -5,6 +5,8 @@
 #include <cstdlib>
 
 #include "game/values.hpp"
+#include "rendering/glyphs.hpp"
+#include "resources/lang.hpp"
 
 namespace ab {
 
@@ -313,16 +315,20 @@ bool slotDot(int slot, int col, int row) {
 }
 
 // Block lettering for the pictures: each dot a square of `scale` pixels, 6 columns per character.
+// The letters of a text are read as UTF-8 (glyphsOf), so translated titles keep their letters.
 void drawText(Canvas& c, const std::string& s, float x, float y, int scale, Col col) {
-    for (std::size_t i = 0; i < s.size(); ++i)
+    const std::vector<int> slots = glyphsOf(s);
+    for (std::size_t i = 0; i < slots.size(); ++i)
         for (int cx = 0; cx < 5; ++cx)
             for (int cy = 0; cy < 7; ++cy)
-                if (glyphDot(s[i], cx, cy)) {
+                if (slotDot(slots[i], cx, cy)) {
                     const int px = static_cast<int>(x) + (static_cast<int>(i) * 6 + cx) * scale, py = static_cast<int>(y) + cy * scale;
                     c.rect(px, py, px + scale, py + scale, col);
                 }
 }
-float textWidth(const std::string& s, int scale) { return static_cast<float>(static_cast<int>(s.size()) * 6 * scale - scale); }
+float textWidth(const std::string& s, int scale) {
+    return static_cast<float>(static_cast<int>(glyphsOf(s).size()) * 6 * scale - scale);
+}
 void drawTitle(Canvas& c, const std::string& s, float cy, int scale, Col col) {
     const float x = (static_cast<float>(c.width()) - textWidth(s, scale)) / 2.0f;
     drawText(c, s, x + static_cast<float>(scale) / 2.0f + 1.0f, cy + static_cast<float>(scale) / 2.0f + 1.0f, scale, rgb(0, 0, 0, 0.8f));
@@ -863,8 +869,8 @@ void buildObjects(Builder& b, int flameFrames) {
     }
     Canvas hurry(260, 60);
     hurry.box(2, 2, 258, 58, 10, rgb(20, 10, 10, 0.8f));
-    drawText(hurry, "HURRY!", 26, 10, 6, rgb(80, 0, 0));
-    drawText(hurry, "HURRY!", 22, 8, 6, rgb(255, 70, 50));
+    drawText(hurry, tr("HURRY!"), 26, 10, 6, rgb(80, 0, 0));
+    drawText(hurry, tr("HURRY!"), 22, 8, 6, rgb(255, 70, 50));
     b.put("hurry", hurry.frame(130, 30));
     // The menu pointer: the robot's head, blinking (the original's is its character's head,
     // five steps: eyes open, closing, shut, opening, open).
@@ -1028,8 +1034,8 @@ std::optional<FreePicture> makeFreePicture(const std::string& name) {
     if (name == "mainmenu") {
         Canvas c = backdrop(rgb(24, 30, 80), rgb(8, 8, 24), 7);
         scatterStars(c, 160, 11);
-        drawTitle(c, "ATOMIC BOMBERMAN", 26, 5, rgb(255, 210, 60));
-        drawTitle(c, "MODERN  -  FREE GRAPHICS SET", 72, 2, rgb(200, 220, 255));
+        drawTitle(c, tr("ATOMIC BOMBERMAN"), 26, 5, rgb(255, 210, 60));
+        drawTitle(c, tr("MODERN  -  FREE GRAPHICS SET"), 72, 2, rgb(200, 220, 255));
         Pose pose;
         bigPlayer(c, 150, 400, 4.6f, 0, pose);
         Canvas bomb(200, 200);
@@ -1041,8 +1047,8 @@ std::optional<FreePicture> makeFreePicture(const std::string& name) {
                 c.blend(210 + x, 340 + y, p, 1.0f);
             }
         // The item texts belong to the picture, as in the original: the game draws only the cursor.
-        static const char* const kItems[7] = {"START GAME", "START NETWORK GAME", "JOIN NETWORK GAME", "OPTIONS",
-                                              "ABOUT", "MANUAL", "EXIT"};
+        const std::string kItems[7] = {tr("START GAME"), tr("START NETWORK GAME"), tr("JOIN NETWORK GAME"), tr("OPTIONS"),
+                                       tr("ABOUT"), tr("MANUAL"), tr("EXIT")};
         c.box(312, 108, 628, 392, 12, rgb(0, 0, 20, 0.55f));
         for (int i = 0; i < 7; ++i) {
             drawText(c, kItems[i], 362, static_cast<float>(140 + 38 * i - 18 + 2), 2, rgb(0, 0, 0, 0.8f));
@@ -1053,21 +1059,21 @@ std::optional<FreePicture> makeFreePicture(const std::string& name) {
     if (name == "results" || name == "roulette") {
         Canvas c = backdrop(rgb(60, 24, 90), rgb(16, 8, 36), 21);
         scatterStars(c, 220, 23);
-        drawTitle(c, name == "results" ? "RESULTS" : "BONUS GAME", 24, 6, rgb(255, 210, 60));
+        drawTitle(c, name == "results" ? tr("RESULTS") : tr("BONUS GAME"), 24, 6, rgb(255, 210, 60));
         return c.picture();
     }
     if (name == "draw") {
         Canvas c = backdrop(rgb(70, 70, 80), rgb(20, 20, 26), 31);
         scatterBombs(c, 3, 0.18f);
-        drawTitle(c, "DRAW GAME", 190, 9, rgb(240, 240, 250));
-        drawTitle(c, "NOBODY WINS THIS ROUND", 290, 3, rgb(255, 210, 60));
+        drawTitle(c, tr("DRAW GAME"), 190, 9, rgb(240, 240, 250));
+        drawTitle(c, tr("NOBODY WINS THIS ROUND"), 290, 3, rgb(255, 210, 60));
         return c.picture();
     }
     if (const int who = number("victory"); who >= 0 && who <= 9) {
         const float* pc = kFreePlayerColour[who];
         Canvas c = backdrop({pc[0] * 0.35f, pc[1] * 0.35f, pc[2] * 0.35f + 0.1f, 1}, rgb(8, 8, 20), 41 + who);
         scatterStars(c, 260, 43 + who);
-        drawTitle(c, "VICTORY", 24, 9, rgb(255, 210, 60));
+        drawTitle(c, tr("VICTORY"), 24, 9, rgb(255, 210, 60));
         Pose pose;
         pose.armsUp = true;
         bigPlayer(c, 320, 420, 6.0f, who, pose);
@@ -1076,7 +1082,7 @@ std::optional<FreePicture> makeFreePicture(const std::string& name) {
     if (const int team = number("team"); team == 0 || team == 1) {
         Canvas c = backdrop(team == 0 ? rgb(70, 70, 90) : rgb(110, 24, 24), rgb(8, 8, 20), 61 + team);
         scatterStars(c, 220, 63);
-        drawTitle(c, "TEAM VICTORY", 24, 7, rgb(255, 210, 60));
+        drawTitle(c, tr("TEAM VICTORY"), 24, 7, rgb(255, 210, 60));
         Pose pose;
         pose.armsUp = true;
         for (int i = 0; i < 3; ++i) bigPlayer(c, 170.0f + 150.0f * static_cast<float>(i), 410, 3.6f, team == 0 ? 0 : 2, pose);
@@ -1085,8 +1091,8 @@ std::optional<FreePicture> makeFreePicture(const std::string& name) {
     if (name == "title") {
         Canvas c = backdrop(rgb(24, 30, 80), rgb(8, 8, 24), 7);
         scatterStars(c, 200, 71);
-        drawTitle(c, "ATOMIC BOMBERMAN", 170, 6, rgb(255, 210, 60));
-        drawTitle(c, "MODERN", 240, 6, rgb(240, 240, 255));
+        drawTitle(c, tr("ATOMIC BOMBERMAN"), 170, 6, rgb(255, 210, 60));
+        drawTitle(c, tr("MODERN"), 240, 6, rgb(240, 240, 255));
         return c.picture();
     }
     return std::nullopt;

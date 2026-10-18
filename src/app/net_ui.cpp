@@ -1,3 +1,4 @@
+#include "resources/lang.hpp"
 #include "app/net_ui.hpp"
 
 #include <SDL3/SDL.h>
@@ -13,6 +14,8 @@
 #include "app/names.hpp"
 #include "rendering/glyphs.hpp"
 
+using ab::tr;
+
 namespace ab {
 
 namespace {
@@ -26,33 +29,40 @@ constexpr int kHostRows = 7;     // name, server name, port, password, announce 
 constexpr int kHostOnlineRow = 4;
 constexpr int kHostStartRow = 5;
 constexpr int kBrowseShown = 12; // games on the list at a time
-const char* const kOnlineChoice[3] = {"No", "Listed for everybody", "By its code only"};
+// Read when shown (see powerText in editor.cpp): the language is loaded by then.
+std::string onlineChoiceText(int i) {
+    const std::string names[3] = {tr("No"), tr("Listed for everybody"), tr("By its code only")};
+    return names[std::clamp(i, 0, 2)];
+}
 constexpr int kLobbySettings = 14;             // the fourteen settings...
 constexpr int kLobbyRows = kLobbySettings + 1; // ...and below them the row of actions
 constexpr int kMenuItems = 4;
-const char* const kMenuItem[kMenuItems] = {"Resume", "Chat", "Back To Lobby", "Leave The Server"};
+std::string menuItemText(int i) {
+    const std::string names[kMenuItems] = {tr("Resume"), tr("Chat"), tr("Back To Lobby"), tr("Leave The Server")};
+    return names[i];
+}
 constexpr std::uint64_t kChatShownMs = 8000;
 
-const char* const kYesNo[2] = {"No", "Yes"};
+std::string yesNoText(bool yes) { return yes ? tr("Yes") : tr("No"); }
 
 std::string optionText(const net::MatchSettings& s, int option) {
-    static const char* const kSpeed[3] = {"Low", "Medium", "High"};
-    static const char* const kDepth[4] = {"None", "A Little", "A Lot", "All the way!"};
+    const std::string kSpeed[3] = {tr("Low"), tr("Medium"), tr("High")};
+    const std::string kDepth[4] = {tr("None"), tr("A Little"), tr("A Lot"), tr("All the way!")};
     switch (static_cast<net::Option>(option)) {
-        case net::Option::Level: return s.level < 0 ? "Random Each Game" : kLevelName[std::clamp(s.level, 0, 10)];
-        case net::Option::Scheme: return "Scheme: " + s.schemeTitle;
-        case net::Option::Wins: return std::to_string(s.winsNeeded) + (s.winByKills ? " Kills" : " Wins") + " to win match";
-        case net::Option::TeamPlay: return std::string("Team Play: ") + kYesNo[s.teamPlay];
-        case net::Option::PlayTime: return "Play Time: " + Settings::playTimeText(s.playTime);
-        case net::Option::Enclosement: return std::string("Enclosement Depth: ") + kDepth[std::clamp(s.enclosementDepth, 0, 3)];
-        case net::Option::Computers: return "Computer Players: " + std::to_string(s.computers);
-        case net::Option::RandomStart: return std::string("Random Start: ") + kYesNo[s.randomStart];
-        case net::Option::ConveyorSpeed: return std::string("Conveyor Speed: ") + kSpeed[std::clamp(s.conveyorSpeed, 0, 2)];
-        case net::Option::StompedBombs: return std::string("Stomped Bombs Detonate: ") + kYesNo[s.stompedBombsDetonate];
-        case net::Option::WinByKills: return std::string("Win Matches By Kill Total: ") + kYesNo[s.winByKills];
-        case net::Option::DiseasesDestroyable: return std::string("Diseases Can Be Destroyed: ") + kYesNo[s.diseasesDestroyable];
-        case net::Option::Goldman: return std::string("Gold Bomberman: ") + kYesNo[s.goldman];
-        case net::Option::Campaign: return "Campaign: " + (s.campaign > 0 ? s.campaignTitle : std::string("Off"));
+        case net::Option::Level: return s.level < 0 ? tr("Random Each Game") : levelName(std::clamp(s.level, 0, 10));
+        case net::Option::Scheme: return tr("Scheme: ") + s.schemeTitle;
+        case net::Option::Wins: return std::to_string(s.winsNeeded) + (s.winByKills ? tr(" Kills") : tr(" Wins")) + tr(" to win match");
+        case net::Option::TeamPlay: return std::string(tr("Team Play: ")) + yesNoText(s.teamPlay);
+        case net::Option::PlayTime: return tr("Play Time: ") + Settings::playTimeText(s.playTime);
+        case net::Option::Enclosement: return std::string(tr("Enclosement Depth: ")) + kDepth[std::clamp(s.enclosementDepth, 0, 3)];
+        case net::Option::Computers: return tr("Computer Players: ") + std::to_string(s.computers);
+        case net::Option::RandomStart: return std::string(tr("Random Start: ")) + yesNoText(s.randomStart);
+        case net::Option::ConveyorSpeed: return std::string(tr("Conveyor Speed: ")) + kSpeed[std::clamp(s.conveyorSpeed, 0, 2)];
+        case net::Option::StompedBombs: return std::string(tr("Stomped Bombs Detonate: ")) + yesNoText(s.stompedBombsDetonate);
+        case net::Option::WinByKills: return std::string(tr("Win Matches By Kill Total: ")) + yesNoText(s.winByKills);
+        case net::Option::DiseasesDestroyable: return std::string(tr("Diseases Can Be Destroyed: ")) + yesNoText(s.diseasesDestroyable);
+        case net::Option::Goldman: return std::string(tr("Gold Bomberman: ")) + yesNoText(s.goldman);
+        case net::Option::Campaign: return tr("Campaign: ") + (s.campaign > 0 ? s.campaignTitle : std::string(tr("Off")));
         case net::Option::Count: break;
     }
     return {};
@@ -88,7 +98,7 @@ void NetUi::takeRecord(std::uint64_t nowMs) {
     const online::RecordReport report = online::examineRecord(client_.lastRecord(), gameVersion_, roots, revoked, &client_);
     if (!report.holds) {
         ++recordsFailed_;
-        client_.note("The record of that round does not hold: " + (report.problems.empty() ? std::string("unreadable") : report.problems.front()), nowMs);
+        client_.note(tr("The record of that round does not hold: ") + (report.problems.empty() ? std::string("unreadable") : report.problems.front()), nowMs);
         return;
     }
     ++recordsHeld_;
@@ -133,7 +143,7 @@ void NetUi::judgeCertificate() {
     certificateProblem_.clear();
     if (shown.empty()) return;
     if (!online_.haveConfig()) {
-        certificateProblem_ = online_.configured() ? "not checked yet" : "cannot be checked (online play is not set up)";
+        certificateProblem_ = online_.configured() ? tr("not checked yet") : tr("cannot be checked (online play is not set up)");
         return;
     }
     online::ServerCertificate cert;
@@ -152,7 +162,7 @@ std::string NetUi::playerName() const {
         for (const char* var : {"USER", "USERNAME"})
             if (const char* value = std::getenv(var); name.empty() && value != nullptr) name = net::cleanText(value, net::kMaxName);
     }
-    return name.empty() ? "Player" : name;
+    return name.empty() ? tr("Player") : name;
 }
 
 void NetUi::openJoin() {
@@ -167,7 +177,7 @@ void NetUi::openHost() {
     mode_ = entry_ = Mode::Host;
     row_ = kHostStartRow;
     if (cfg_.netName.empty()) cfg_.netName = playerName();
-    if (cfg_.netServerName.empty()) cfg_.netServerName = net::cleanText(playerName() + "'s game", 32);
+    if (cfg_.netServerName.empty()) cfg_.netServerName = net::cleanText(trf("{0}'s game", {playerName()}), 32);
     portText_ = std::to_string(cfg_.netPort);
 }
 
@@ -329,18 +339,18 @@ std::vector<NetUi::LobbyItem> NetUi::lobbyItems() const {
     const net::LobbyState& lobby = client_.lobby();
     const bool open = lobby.phase == net::Phase::Lobby;  // no match is on
     std::vector<LobbyItem> items;
-    if (client_.isAdmin()) items.push_back({LobbyAction::Start, 0, "Start", open});
-    else items.push_back({LobbyAction::Ready, 0, std::string(client_.ready() ? "[x]" : "[ ]") + " Ready", open && client_.seat() >= 0});
+    if (client_.isAdmin()) items.push_back({LobbyAction::Start, 0, tr("Start"), open});
+    else items.push_back({LobbyAction::Ready, 0, std::string(client_.ready() ? "[x]" : "[ ]") + tr(" Ready"), open && client_.seat() >= 0});
     if (lobby.settings.teamPlay) {
         const std::array<int, net::kMaxLocalPlayers> seats = client_.seats();
         int seated = 0;
         for (int seat : seats) seated += seat >= 0 ? 1 : 0;
         for (int l = 0; l < net::kMaxLocalPlayers; ++l)
-            if (seats[static_cast<std::size_t>(l)] >= 0) items.push_back({LobbyAction::Team, l, seated > 1 ? "Team " + std::to_string(l + 1) : "Team", open});
+            if (seats[static_cast<std::size_t>(l)] >= 0) items.push_back({LobbyAction::Team, l, seated > 1 ? tr("Team ") + std::to_string(l + 1) : tr("Team"), open});
     }
-    items.push_back({LobbyAction::Players, 0, "Players: " + std::to_string(client_.localPlayers()), open});
-    items.push_back({LobbyAction::Chat, 0, "Chat", true});
-    items.push_back({LobbyAction::Leave, 0, "Leave", true});
+    items.push_back({LobbyAction::Players, 0, tr("Players: ") + std::to_string(client_.localPlayers()), open});
+    items.push_back({LobbyAction::Chat, 0, tr("Chat"), true});
+    items.push_back({LobbyAction::Leave, 0, tr("Leave"), true});
     return items;
 }
 
@@ -423,7 +433,7 @@ bool NetUi::onlineBegin() {
     onlineName_ = playerName();
     return true;
 #else
-    showError("This copy of the game was built without online play");
+    showError(tr("This copy of the game was built without online play"));
     return false;
 #endif
 }
@@ -471,9 +481,9 @@ void NetUi::loadTournament() {
     tournamentOpened_ = location;
     if (hooks_.settingsChanged) hooks_.settingsChanged();
     tournamentLoaded_ = false;
-    tournamentNote_ = "Reading...";
+    tournamentNote_ = tr("Reading...");
     if (location.empty()) {
-        tournamentNote_ = "Name a tournament file or its address";
+        tournamentNote_ = tr("Name a tournament file or its address");
         return;
     }
     if (location.rfind("http://", 0) == 0 || location.rfind("https://", 0) == 0) {
@@ -487,7 +497,7 @@ void NetUi::loadTournament() {
     if (!online::fetchTournament(location, envelope, why)) tournamentNote_ = why;
     else readTournamentFile(envelope);
 #else
-    tournamentNote_ = "This copy of the game was built without online play";
+    tournamentNote_ = tr("This copy of the game was built without online play");
 #endif
 }
 
@@ -504,7 +514,7 @@ void NetUi::readTournamentFile(const std::string& envelope) {
         otherKey = haveKey && why == "not signed by the organiser whose key you hold" && online::readTournament(envelope, nullptr, 0, t, why);
         if (!otherKey) {
             tournamentLoaded_ = false;
-            tournamentNote_ = "Not opened: " + why;
+            tournamentNote_ = tr("Not opened: ") + why;
             return;
         }
     }
@@ -521,15 +531,15 @@ void NetUi::readTournamentFile(const std::string& envelope) {
     const online::TournamentPlayer* me = havePlayerKey_ ? tournament_.playerByKey(mine) : nullptr;
     const std::vector<const online::TournamentMatch*> open = tournament_.openMatchesOf(mine);
     if (!tournamentTrusted_)
-        tournamentNote_ = std::string(otherKey ? "Not the key you chose before. " : "") + "Signed by " + online::keyFingerprint(tournament_.organiserKey) + ". Is that your organiser's key?";
+        tournamentNote_ = std::string(otherKey ? tr("Not the key you chose before. ") : "") + tr("Signed by ") + online::keyFingerprint(tournament_.organiserKey) + tr(". Is that your organiser's key?");
     else if (me == nullptr) tournamentNote_ = "You are not among its players";
-    else if (open.empty()) tournamentNote_ = me->name + ": no match left to play";
-    else if (!tournament_.ready(*open.front())) tournamentNote_ = me->name + ": match " + open.front()->id + " waits for an earlier match";
+    else if (open.empty()) tournamentNote_ = me->name + tr(": no match left to play");
+    else if (!tournament_.ready(*open.front())) tournamentNote_ = me->name + tr(": match ") + open.front()->id + tr(" waits for an earlier match");
     else {
         std::string others;
         for (const std::string& who : open.front()->players)
             if (who != me->name) others += (others.empty() ? "" : ", ") + who;
-        tournamentNote_ = me->name + ": match " + open.front()->id + " against " + others;
+        tournamentNote_ = me->name + tr(": match ") + open.front()->id + tr(" against ") + others;
     }
 #else
     (void)envelope;
@@ -554,7 +564,7 @@ void NetUi::playTournamentMatch() {
 // The master server is asked how to reach that game; update() goes on from its answer.
 void NetUi::askJoin(const std::string& lobbyId, const std::string& code) {
 #ifdef AB_ONLINE
-    connectingTo_ = "the master server";
+    connectingTo_ = tr("the master server");
     connectingSince_ = clock();
     lastState_ = State::Idle;
     mode_ = Mode::Connecting;
@@ -577,7 +587,7 @@ void NetUi::updateOnline(std::uint64_t nowMs) {
         announcer_.update(nowMs, online_, server_, net::cleanText(cfg_.netServerName, 32), cfg_.netOnline == 1, true);
         iceHost_.update(nowMs, online_, server_, cfg_.netHideAddress);  // players behind routers find a way in
         if (online_.announced()) onlineNote_ = std::string(cfg_.netOnline == 1 ? "Listed, code " : "Code ") + online_.code();
-        else onlineNote_ = online_.error().empty() ? "Announcing..." : "Not announced online";
+        else onlineNote_ = online_.error().empty() ? tr("Announcing...") : tr("Not announced online");
     }
     if (tournamentLoading_ && tournamentJob_.finished()) {
         tournamentLoading_ = false;
@@ -597,7 +607,7 @@ void NetUi::updateOnline(std::uint64_t nowMs) {
             asking_ = Asking::Nothing;
             iceJoin_.cancel();
             viaIce_ = true;  // (so that the first address is the next thing tried)
-            if (!nextCandidate()) showError("No way to that game was found (its host cannot be reached from here)");
+            if (!nextCandidate()) showError(tr("No way to that game was found (its host cannot be reached from here)"));
         }
         return;
     }
@@ -605,15 +615,15 @@ void NetUi::updateOnline(std::uint64_t nowMs) {
     if (!online_.error().empty()) return showError(online_.error());
     if (asking_ == Asking::Find) {
         online::LobbyInfo found;
-        if (!online_.takeFound(found)) return showError("No game with that code");
+        if (!online_.takeFound(found)) return showError(tr("No game with that code"));
         asking_ = Asking::Join;
         online_.join(found.id, codeText_);
         return;
     }
     online::JoinInfo info;
-    if (!online_.takeJoin(info)) return showError("The master server gave no answer");
+    if (!online_.takeJoin(info)) return showError(tr("The master server gave no answer"));
     asking_ = Asking::Nothing;
-    if (info.candidates.empty()) return showError("That game has not said how it can be reached");
+    if (info.candidates.empty()) return showError(tr("That game has not said how it can be reached"));
     // The ways in are tried one after the other; whoever answers must show the identity the master named.
     candidates_.clear();
     bool offersIce = false;
@@ -630,7 +640,7 @@ void NetUi::updateOnline(std::uint64_t nowMs) {
         connectingText_ = iceJoin_.step();
         return;
     }
-    if (candidates_.empty()) return showError("That game has not said how it can be reached");
+    if (candidates_.empty()) return showError(tr("That game has not said how it can be reached"));
     connectTo(candidates_[0], false);
 #else
     (void)nowMs;
@@ -639,14 +649,14 @@ void NetUi::updateOnline(std::uint64_t nowMs) {
 
 // The same over a way through routers that ICE has found.
 void NetUi::connectOver(std::unique_ptr<net::Carrier> way) {
-    connectingTo_ = "the host";
+    connectingTo_ = tr("the host");
     connectingText_.clear();
     connectingSince_ = clock();
     viaIce_ = true;
     pathChecked_ = false;
     client_.expectIdentity(expectIdentity_);
     client_.setPrediction(cfg_.netPrediction);
-    client_.connectVia(std::move(way), "the host", playerName(), password_, clock());
+    client_.connectVia(std::move(way), tr("the host"), playerName(), password_, clock());
     lastState_ = State::Connecting;
     lastRound_ = 0;
     mode_ = Mode::Connecting;
@@ -664,7 +674,7 @@ bool NetUi::nextCandidate() {
 void NetUi::startHost() {
     const int port = std::atoi(portText_.c_str());
     if (port < 1 || port > 65535) {
-        error_ = "The port must be a number from 1 to 65535";
+        error_ = tr("The port must be a number from 1 to 65535");
         mode_ = Mode::Error;
         return;
     }
@@ -674,10 +684,10 @@ void NetUi::startHost() {
     if (cfg_.netOnline != 0) {
         // A game the master announces has no password: the master would hand out the way to it
         // before the password is asked for. A private game is one found by its code only.
-        if (!password_.empty()) return showError("A game announced online has no password. To keep it private, announce it \"by its code only\".");
+        if (!password_.empty()) return showError(tr("A game announced online has no password. To keep it private, announce it \"by its code only\"."));
         if (!onlineBegin()) return;
         hostOnline_ = true;
-        onlineNote_ = "Announcing...";
+        onlineNote_ = tr("Announcing...");
 #ifdef AB_ONLINE
         announcer_.reset();
 #endif
@@ -686,7 +696,7 @@ void NetUi::startHost() {
     if (hooks_.settingsChanged) hooks_.settingsChanged();
     net::ServerConfig config;
     config.name = net::cleanText(cfg_.netServerName, 32);
-    if (config.name.empty()) config.name = playerName() + "'s game";
+    if (config.name.empty()) config.name = trf("{0}'s game", {playerName()});
     config.port = static_cast<std::uint16_t>(port);
     config.password = password_;
     config.gameDir = gameDir_;
@@ -717,7 +727,7 @@ void NetUi::startHost() {
     if (!userSchemesDir_.empty()) config.identityFile = userSchemesDir_ + "/../server.key";  // a hosted game tries to open the router's port; the lobby says how it went
     config.log = [](const std::string& line) { std::fprintf(stderr, "%s\n", line.c_str()); };
     if (!server_.start(config)) {
-        error_ = server_.error() + " (is a server already running on it?)";
+        error_ = server_.error() + tr(" (is a server already running on it?)");
         mode_ = Mode::Error;
         return;
     }
@@ -801,7 +811,7 @@ void NetUi::key(unsigned key, bool ctrl, bool pad) {
             client_.forgetServer(connectingTo_);
             identityChanged_ = false;
             errorItem_ = 0;
-            error_ = "The old identity is forgotten. Join again to accept the new one.";
+            error_ = tr("The old identity is forgotten. Join again to accept the new one.");
             return;
         }
         if (key == SDLK_RETURN || key == SDLK_KP_ENTER || key == SDLK_SPACE || key == SDLK_ESCAPE) {
@@ -1137,7 +1147,7 @@ void NetUi::update(std::uint64_t nowMs, const std::array<PlayerInput, net::kMaxL
     // that stops carrying is given up for the next one.
     if (state == State::Lobby && viaIce_ && !pathChecked_) {
         if (client_.volumeCheck() == net::Client::VolumeCheck::NotRun) client_.startVolumeCheck(nowMs);
-        connectingText_ = "Testing the connection...";
+        connectingText_ = tr("Testing the connection...");
         if (client_.volumeCheck() == net::Client::VolumeCheck::Running) return;
         if (client_.volumeCheck() == net::Client::VolumeCheck::Failed) {
             client_.disconnect();
@@ -1151,7 +1161,7 @@ void NetUi::update(std::uint64_t nowMs, const std::array<PlayerInput, net::kMaxL
                 return;
             }
 #endif
-            if (!nextCandidate()) showError("The way found to that game stopped carrying data, and there is no other");
+            if (!nextCandidate()) showError(tr("The way found to that game stopped carrying data, and there is no other"));
             return;
         }
         pathChecked_ = true;
@@ -1230,7 +1240,7 @@ void NetUi::drawEntry(Renderer& r, SpriteBank& bank, int frame) {
     r.image(bank.picture("glue0"));
     const bool join = mode_ == Mode::Join;
     r.quad(40, 40, 560, 380, 0.0f, 0.0f, 0.10f, 0.85f);
-    label(r, bank, join ? "Join Network Game" : "Start Network Game", 55, 50, 1.0f, 0.95f, 0.3f);
+    label(r, bank, join ? tr("Join Network Game") : tr("Start Network Game"), 55, 50, 1.0f, 0.95f, 0.3f);
     const bool blink = (frame / 20) % 2 == 0;
     auto fieldRow = [&](int row, const std::string& name, const std::string* value, bool secret, const std::string& empty) {
         const float y = 86.0f + 24.0f * static_cast<float>(row);
@@ -1249,24 +1259,24 @@ void NetUi::drawEntry(Renderer& r, SpriteBank& bank, int frame) {
         if (on) r.sprite(bank, "cursor1", frame / 8, -1, 62.0f, y + 15.0f);
     };
     if (join) {
-        fieldRow(0, "Your name:", &cfg_.netName, false, "Player");
-        fieldRow(1, "Address:", &cfg_.netAddress, false, "(host or host:port)");
-        fieldRow(2, "Password:", &password_, true, "(none)");
-        item(3, "Join this address", 86.0f + 24.0f * 3.0f);
-        item(4, "Browse online games", 86.0f + 24.0f * 4.0f);
-        item(5, "Join online by code", 86.0f + 24.0f * 5.0f);
-        item(6, "Tournament", 86.0f + 24.0f * 6.0f);
-        item(kJoinHideRow, std::string("Online, hide my address: ") + (cfg_.netHideAddress ? "Yes (through the relay, slower)" : "No"), 86.0f + 24.0f * 7.0f);
-        label(r, bank, "Games on the local network:", 80, 284, 1, 1, 1);
+        fieldRow(0, tr("Your name:"), &cfg_.netName, false, tr("Player"));
+        fieldRow(1, tr("Address:"), &cfg_.netAddress, false, tr("(host or host:port)"));
+        fieldRow(2, tr("Password:"), &password_, true, "(none)");
+        item(3, tr("Join this address"), 86.0f + 24.0f * 3.0f);
+        item(4, tr("Browse online games"), 86.0f + 24.0f * 4.0f);
+        item(5, tr("Join online by code"), 86.0f + 24.0f * 5.0f);
+        item(6, tr("Tournament"), 86.0f + 24.0f * 6.0f);
+        item(kJoinHideRow, std::string(tr("Online, hide my address: ")) + (cfg_.netHideAddress ? tr("Yes (through the relay, slower)") : tr("No")), 86.0f + 24.0f * 7.0f);
+        label(r, bank, tr("Games on the local network:"), 80, 284, 1, 1, 1);
         const auto& servers = browser_.servers();
         if (servers.empty()) label(r, bank, "(searching...)", 100, 306, 0.7f, 0.7f, 0.7f);
         for (std::size_t i = 0; i < servers.size() && i < 4; ++i) {
-            static const char* const kPhase[4] = {"in the lobby", "playing", "playing", "playing"};
+            const std::string kPhase[4] = {tr("in the lobby"), tr("playing"), tr("playing"), tr("playing")};
             const net::ServerInfo& info = servers[i].info;
             const float y = 306.0f + 22.0f * static_cast<float>(i);
             const bool on = row_ == kJoinFields + static_cast<int>(i);
             const std::string line = info.name + "   " + std::to_string(info.players) + " player" + (info.players == 1 ? "" : "s") + ", " +
-                                     kPhase[static_cast<int>(info.phase)] + (info.password ? "   (password)" : "") +
+                                     kPhase[static_cast<int>(info.phase)] + (info.password ? tr("   (password)") : "") +
                                      (info.version != net::kProtocolVersion ? "   (other version)" : "");
             label(r, bank, line, 100, y, on ? 1.0f : 0.85f, on ? 0.95f : 0.85f, on ? 0.3f : 0.85f);
             if (on) r.sprite(bank, "cursor1", frame / 8, -1, 82.0f, y + 15.0f);
@@ -1274,24 +1284,24 @@ void NetUi::drawEntry(Renderer& r, SpriteBank& bank, int frame) {
         item(kJoinFields + static_cast<int>(servers.size()), "Back", 404);
         label(r, bank, editing_ != nullptr ? "Type, then Enter" : "Up/Down: select   Enter: change / join   Esc: back", 60, 440, 0.4f, 1.0f, 1.0f);
     } else {
-        fieldRow(0, "Your name:", &cfg_.netName, false, "Player");
-        fieldRow(1, "Game name:", &cfg_.netServerName, false, "");
-        fieldRow(2, "Port:", &portText_, false, "");
-        fieldRow(3, "Password:", &password_, true, "(none)");
+        fieldRow(0, tr("Your name:"), &cfg_.netName, false, tr("Player"));
+        fieldRow(1, tr("Game name:"), &cfg_.netServerName, false, "");
+        fieldRow(2, tr("Port:"), &portText_, false, "");
+        fieldRow(3, tr("Password:"), &password_, true, "(none)");
         {
             // A choice, changed with left and right (or by choosing it).
             const float y = 86.0f + 24.0f * static_cast<float>(kHostOnlineRow);
             const bool on = row_ == kHostOnlineRow;
-            label(r, bank, "Announce online:", 80, y, on ? 1.0f : 0.85f, on ? 0.95f : 0.85f, on ? 0.3f : 0.85f);
-            label(r, bank, kOnlineChoice[std::clamp(cfg_.netOnline, 0, 2)], 230, y, 1, 1, 1);
+            label(r, bank, tr("Announce online:"), 80, y, on ? 1.0f : 0.85f, on ? 0.95f : 0.85f, on ? 0.3f : 0.85f);
+            label(r, bank, onlineChoiceText(cfg_.netOnline), 230, y, 1, 1, 1);
             if (on) r.sprite(bank, "cursor1", frame / 8, -1, 62.0f, y + 15.0f);
         }
-        item(kHostStartRow, "Start the server", 86.0f + 24.0f * static_cast<float>(kHostStartRow) + 6.0f);
-        item(kHostStartRow + 1, "Back", 86.0f + 24.0f * static_cast<float>(kHostStartRow + 1) + 6.0f);
-        const std::vector<std::string> notes = {"Others join with your address and this port (TCP and UDP).",
-                                                "On the same network they find the game by themselves.",
-                                                "If your router lets nothing in: announce the game online, and give out its code.",
-                                                "For a server without a window run atomic_server."};
+        item(kHostStartRow, tr("Start the server"), 86.0f + 24.0f * static_cast<float>(kHostStartRow) + 6.0f);
+        item(kHostStartRow + 1, tr("Back"), 86.0f + 24.0f * static_cast<float>(kHostStartRow + 1) + 6.0f);
+        const std::vector<std::string> notes = {tr("Others join with your address and this port (TCP and UDP)."),
+                                                tr("On the same network they find the game by themselves."),
+                                                tr("If your router lets nothing in: announce the game online, and give out its code."),
+                                                tr("For a server without a window run atomic_server.")};
         for (std::size_t i = 0; i < notes.size(); ++i) label(r, bank, notes[i], 60, 300.0f + 22.0f * static_cast<float>(i), 0.75f, 0.75f, 0.75f);
         label(r, bank, editing_ != nullptr ? "Type, then Enter" : "Up/Down: select   Enter: change / start   Esc: back", 60, 440, 0.4f, 1.0f, 1.0f);
     }
@@ -1302,10 +1312,10 @@ void NetUi::drawBrowse(Renderer& r, SpriteBank& bank, int frame) {
 #ifdef AB_ONLINE
     r.image(bank.picture("glue0"));
     r.quad(40, 40, 560, 400, 0.0f, 0.0f, 0.10f, 0.85f);
-    label(r, bank, "Online Games", 55, 50, 1.0f, 0.95f, 0.3f);
+    label(r, bank, tr("Online Games"), 55, 50, 1.0f, 0.95f, 0.3f);
     const auto& games = online_.lobbies();
     const int count = static_cast<int>(games.size());
-    const std::string status = online_.busy() ? "Asking the master server..."
+    const std::string status = online_.busy() ? tr("Asking the master server...")
                                : !online_.error().empty() ? online_.error()
                                : count == 0 ? "No games are open just now."
                                : std::to_string(online_.lobbiesTotal()) + (online_.lobbiesTotal() == 1 ? " game" : " games");
@@ -1330,9 +1340,9 @@ void NetUi::drawBrowse(Renderer& r, SpriteBank& bank, int frame) {
         label(r, bank, text, 80, y, on ? 1.0f : 0.85f, on ? 0.95f : 0.85f, on ? 0.3f : 0.85f);
         if (on) r.sprite(bank, "cursor1", frame / 8, -1, 62.0f, y + 15.0f);
     };
-    item(count, "Refresh", 388);
-    item(count + 1, "Back", 412);
-    label(r, bank, "Up/Down: select   Enter: join   Esc: back", 60, 448, 0.4f, 1.0f, 1.0f);
+    item(count, tr("Refresh"), 388);
+    item(count + 1, tr("Back"), 412);
+    label(r, bank, tr("Up/Down: select   Enter: join   Esc: back"), 60, 448, 0.4f, 1.0f, 1.0f);
 #else
     (void)r, (void)bank, (void)frame;
 #endif
@@ -1342,7 +1352,7 @@ void NetUi::drawBrowse(Renderer& r, SpriteBank& bank, int frame) {
 void NetUi::drawTournament(Renderer& r, SpriteBank& bank, int frame) {
     r.image(bank.picture("glue0"));
     r.quad(40, 40, 560, 400, 0.0f, 0.0f, 0.10f, 0.85f);
-    label(r, bank, "Tournament", 55, 50, 1.0f, 0.95f, 0.3f);
+    label(r, bank, tr("Tournament"), 55, 50, 1.0f, 0.95f, 0.3f);
     const bool typing = editing_ == &cfg_.tournament;
     const bool blink = (frame / 20) % 2 == 0;
     auto item = [&](int row, const std::string& text, float y, bool enabled = true) {
@@ -1351,21 +1361,21 @@ void NetUi::drawTournament(Renderer& r, SpriteBank& bank, int frame) {
         label(r, bank, text, 80, y, on ? 1.0f : lit, on ? 0.95f : lit, on ? 0.3f : lit);
         if (on) r.sprite(bank, "cursor1", frame / 8, -1, 62.0f, y + 15.0f);
     };
-    item(0, "File or address:", 80);
-    std::string shown = cfg_.tournament.empty() && !typing ? "(a path, or https://...)" : cfg_.tournament;
+    item(0, tr("File or address:"), 80);
+    std::string shown = cfg_.tournament.empty() && !typing ? tr("(a path, or https://...)") : cfg_.tournament;
     while (r.textWidth(bank, shown) > 330 && shown.size() > 3) shown.erase(0, 1);  // the end stays visible
     label(r, bank, shown + (typing ? (blink ? "_" : " ") : ""), 230, 80, typing ? 0.4f : 1.0f, 1.0f, 1.0f);
     if (typing) r.sprite(bank, "cursor1", frame / 8, -1, 62.0f, 95.0f);
     const bool canPlay = tournamentLoaded_ && tournamentTrusted_ && tournamentNote_.find(": match ") != std::string::npos && tournamentNote_.find("waits") == std::string::npos;
-    item(1, tournamentLoaded_ ? "Read it again" : "Open", 104);
-    item(2, "Play my match", 128, canPlay);
-    item(3, "This is my organiser's key", 152, tournamentLoaded_ && !tournamentTrusted_);
-    item(4, "Back", 176);
+    item(1, tournamentLoaded_ ? tr("Read it again") : tr("Open"), 104);
+    item(2, tr("Play my match"), 128, canPlay);
+    item(3, tr("This is my organiser's key"), 152, tournamentLoaded_ && !tournamentTrusted_);
+    item(4, tr("Back"), 176);
     const std::vector<std::string> note = wrap(r, bank, tournamentNote_, 520);
     for (std::size_t i = 0; i < note.size() && i < 2; ++i) label(r, bank, note[i], 60, 206.0f + 18.0f * static_cast<float>(i), 0.4f, 1.0f, 1.0f);
 #ifdef AB_ONLINE
     if (tournamentLoaded_) {
-        const std::string title = tournament_.name + (tournament_.organiser.empty() ? "" : "  (" + tournament_.organiser + ")") + (tournamentTrusted_ ? "" : "  - not yet trusted");
+        const std::string title = tournament_.name + (tournament_.organiser.empty() ? "" : "  (" + tournament_.organiser + ")") + (tournamentTrusted_ ? "" : tr("  - not yet trusted"));
         label(r, bank, wrap(r, bank, title, 520).front(), 60, 250, 1.0f, 0.95f, 0.3f);
         // The matches still to be played first, then the ones that are over; as many as fit.
         std::vector<const online::TournamentMatch*> order;
@@ -1381,19 +1391,19 @@ void NetUi::drawTournament(Renderer& r, SpriteBank& bank, int frame) {
             const float lit = m.winner.empty() ? 0.9f : 0.6f;
             label(r, bank, m.id, 60, y, lit, lit, lit);
             label(r, bank, wrap(r, bank, who, 300).front(), 130, y, lit, lit, lit);
-            label(r, bank, wrap(r, bank, m.winner.empty() ? m.server : "won by " + m.winner, 150).front(), 440, y, lit, lit, lit);
+            label(r, bank, wrap(r, bank, m.winner.empty() ? m.server : tr("won by ") + m.winner, 150).front(), 440, y, lit, lit, lit);
         }
         if (order.size() > 8) label(r, bank, "(and " + std::to_string(order.size() - 8) + " more)", 60, 272.0f + 18.0f * 8.0f, 0.6f, 0.6f, 0.6f);
     }
 #endif
-    label(r, bank, typing ? "Type, then Enter" : "Up/Down: select   Enter: choose   Esc: back", 60, 448, 0.4f, 1.0f, 1.0f);
+    label(r, bank, typing ? tr("Type, then Enter") : tr("Up/Down: select   Enter: choose   Esc: back"), 60, 448, 0.4f, 1.0f, 1.0f);
 }
 
 // Joining a game by the six digits its host gives out.
 void NetUi::drawCode(Renderer& r, SpriteBank& bank, int frame) {
     r.image(bank.picture("glue0"));
     r.quad(40, 40, 560, 380, 0.0f, 0.0f, 0.10f, 0.85f);
-    label(r, bank, "Join Online By Code", 55, 50, 1.0f, 0.95f, 0.3f);
+    label(r, bank, tr("Join Online By Code"), 55, 50, 1.0f, 0.95f, 0.3f);
     const bool typing = editing_ == &codeText_;
     const bool blink = (frame / 20) % 2 == 0;
     auto item = [&](int row, const std::string& text, float y) {
@@ -1401,13 +1411,13 @@ void NetUi::drawCode(Renderer& r, SpriteBank& bank, int frame) {
         label(r, bank, text, 80, y, on ? 1.0f : 0.85f, on ? 0.95f : 0.85f, on ? 0.3f : 0.85f);
         if (on) r.sprite(bank, "cursor1", frame / 8, -1, 62.0f, y + 15.0f);
     };
-    item(0, "Code:", 96);
+    item(0, tr("Code:"), 96);
     label(r, bank, codeText_ + (typing ? (blink ? "_" : " ") : codeText_.empty() ? "(six digits)" : ""), 230, 96, typing ? 0.4f : 1.0f, 1.0f, 1.0f);
     if (typing) r.sprite(bank, "cursor1", frame / 8, -1, 62.0f, 111.0f);
-    item(1, "Join", 132);
-    item(2, "Back", 156);
-    label(r, bank, "The host of a game sees its code in the lobby.", 60, 200, 0.75f, 0.75f, 0.75f);
-    label(r, bank, typing ? "Type the code, then Enter" : "Up/Down: select   Enter: choose   Esc: back", 60, 440, 0.4f, 1.0f, 1.0f);
+    item(1, tr("Join"), 132);
+    item(2, tr("Back"), 156);
+    label(r, bank, tr("The host of a game sees its code in the lobby."), 60, 200, 0.75f, 0.75f, 0.75f);
+    label(r, bank, typing ? tr("Type the code, then Enter") : tr("Up/Down: select   Enter: choose   Esc: back"), 60, 440, 0.4f, 1.0f, 1.0f);
 }
 
 void NetUi::drawLobby(Renderer& r, SpriteBank& bank, int frame, std::uint64_t nowMs) {
@@ -1419,7 +1429,7 @@ void NetUi::drawLobby(Renderer& r, SpriteBank& bank, int frame, std::uint64_t no
     r.quad(322, 10, 304, 306, 0.0f, 0.0f, 0.10f, 0.85f);
     r.quad(14, 322, 612, 132, 0.0f, 0.0f, 0.10f, 0.85f);
 
-    label(r, bank, "Players", 24, 16, 1.0f, 0.95f, 0.3f);
+    label(r, bank, tr("Players"), 24, 16, 1.0f, 0.95f, 0.3f);
     for (int s = 0; s < kMaxPlayers; ++s) {
         const net::Seat& seat = lobby.seats[static_cast<std::size_t>(s)];
         const float y = 42.0f + 22.0f * static_cast<float>(s);
@@ -1446,17 +1456,17 @@ void NetUi::drawLobby(Renderer& r, SpriteBank& bank, int frame, std::uint64_t no
     }
     std::string watching;
     for (const net::ClientInfo& c : lobby.clients)
-        if (c.seat < 0) watching += (watching.empty() ? "Watching: " : ", ") + c.name;
+        if (c.seat < 0) watching += (watching.empty() ? tr("Watching: ") : ", ") + c.name;
     if (!watching.empty()) label(r, bank, wrap(r, bank, watching, 280).front(), 24, 260, 0.7f, 0.7f, 0.7f);
-    label(r, bank, "* administrator   green mark: ready", 24, 278, 0.6f, 0.6f, 0.6f);
+    label(r, bank, tr("* administrator   green mark: ready"), 24, 278, 0.6f, 0.6f, 0.6f);
     if (!verifiedOperator_.empty()) {
         // A certificate that holds: who answers for this server.
-        label(r, bank, wrap(r, bank, "verified server of " + verifiedOperator_, 284).front(), 24, 296, 0.3f, 0.95f, 0.4f);
+        label(r, bank, wrap(r, bank, tr("verified server of ") + verifiedOperator_, 284).front(), 24, 296, 0.3f, 0.95f, 0.4f);
     } else if (!certificateProblem_.empty()) {
-        label(r, bank, wrap(r, bank, "certificate: " + certificateProblem_, 284).front(), 24, 296, 1.0f, 0.6f, 0.2f);
+        label(r, bank, wrap(r, bank, tr("certificate: ") + certificateProblem_, 284).front(), 24, 296, 1.0f, 0.6f, 0.2f);
     } else if (!client_.serverIdentity().empty()) {
         // On a line of its own: beside the note above the two ran into each other.
-        label(r, bank, "server id " + client_.serverIdentity(), 24, 296, 0.6f, 0.6f, 0.6f);
+        label(r, bank, tr("server id ") + client_.serverIdentity(), 24, 296, 0.6f, 0.6f, 0.6f);
     }
 
     // The game's name, and for a game announced online its standing there (the code to give out).
@@ -1470,12 +1480,12 @@ void NetUi::drawLobby(Renderer& r, SpriteBank& bank, int frame, std::uint64_t no
         std::string missing;
         for (const net::ClientInfo& c : lobby.clients)
             if (c.seat >= 0 && c.id != lobby.admin && !c.ready) missing += (missing.empty() ? "" : ", ") + c.name;
-        const std::string status = waiting ? (client_.sittingOut() ? "The match goes on without you" : "A match is being played")
-                                   : !missing.empty() && admin ? "Not ready yet: " + missing
-                                   : admin ? "Everybody is ready"
-                                   : !client_.ready() && client_.seat() >= 0 ? "Say when you are ready"
-                                   : !missing.empty() ? "Waiting for: " + missing
-                                   : "Waiting for " + adminName + " to start";
+        const std::string status = waiting ? (client_.sittingOut() ? tr("The match goes on without you") : tr("A match is being played"))
+                                   : !missing.empty() && admin ? tr("Not ready yet: ") + missing
+                                   : admin ? tr("Everybody is ready")
+                                   : !client_.ready() && client_.seat() >= 0 ? tr("Say when you are ready")
+                                   : !missing.empty() ? tr("Waiting for: ") + missing
+                                   : tr("Waiting for ") + adminName + tr(" to start");
         label(r, bank, wrap(r, bank, status, 284).front(), 332, 40, 0.4f, 1.0f, 1.0f);
     }
     for (int row = 0; row < kLobbySettings; ++row) {
@@ -1502,7 +1512,7 @@ void NetUi::drawLobby(Renderer& r, SpriteBank& bank, int frame, std::uint64_t no
 
     // The row of actions; the one chosen is on a lighter ground.
     if (escapeAt_ != 0 && nowMs - escapeAt_ < 3000) {
-        label(r, bank, "Press Esc again to leave the server", 24, 458, 0.4f, 1.0f, 1.0f);
+        label(r, bank, tr("Press Esc again to leave the server"), 24, 458, 0.4f, 1.0f, 1.0f);
         return;
     }
     const std::vector<LobbyItem> items = lobbyItems();
@@ -1537,7 +1547,7 @@ void NetUi::drawKeyboard(Renderer& r, SpriteBank& bank, int frame) {
         else r.quad(x, y, w, cellH - 4.0f, 0.12f, 0.12f, 0.28f, 1.0f);
         label(r, bank, c.label, x + (w - r.textWidth(bank, c.label)) / 2.0f, y + 3.0f, c.selected ? 1.0f : 0.9f, c.selected ? 0.95f : 0.9f, c.selected ? 0.3f : 0.9f);
     }
-    label(r, bank, "A: press   X: erase   Y: space   Start: done   B: close", left, 474.0f - 22.0f, 0.6f, 0.6f, 0.6f);
+    label(r, bank, tr("A: press   X: erase   Y: space   Start: done   B: close"), left, 474.0f - 22.0f, 0.6f, 0.6f, 0.6f);
 }
 
 // The menu of a match: the game goes on behind it.
@@ -1548,7 +1558,7 @@ void NetUi::drawMatchMenu(Renderer& r, SpriteBank& bank) {
         const bool on = i == menuItem_;
         const float y = 166.0f + 26.0f * static_cast<float>(i);
         if (on) r.quad(212, y - 2.0f, 216, 22, 0.25f, 0.30f, 0.75f, 1.0f);
-        label(r, bank, kMenuItem[i], 320.0f - r.textWidth(bank, kMenuItem[i]) / 2.0f, y, on ? 1.0f : 0.85f, on ? 0.95f : 0.85f, on ? 0.3f : 0.85f);
+        label(r, bank, menuItemText(i), 320.0f - r.textWidth(bank, menuItemText(i)) / 2.0f, y, on ? 1.0f : 0.85f, on ? 0.95f : 0.85f, on ? 0.3f : 0.85f);
     }
 }
 
@@ -1578,10 +1588,10 @@ void NetUi::drawChat(Renderer& r, SpriteBank& bank, std::uint64_t nowMs) {
 void NetUi::drawRoulette(Renderer& r, SpriteBank& bank) {
     static const char* const kPower[kPowTypeCount] = {"bomb", "flame", "disease", "kicker", "skate", "punch", "grab", "spooge",
                                                       "goldflame", "trigger", "jelly", "disease3", "random", "clog", "clog"};
-    static const char* const kPrizeText[kPowTypeCount] = {
-        "an extra bomb", "longer flame length", "a disease", "the ability to kick bombs", "extra speed",
-        "the ability to punch bombs", "the ability to grab bombs", "the spooger", "goldflame", "a trigger mechanism",
-        "jelly (bouncy) bombs", "super bad disease", "random", "a speed brake (slowness)", ""};
+    const std::string kPrizeText[kPowTypeCount] = {
+        tr("an extra bomb"), tr("longer flame length"), tr("a disease"), tr("the ability to kick bombs"), tr("extra speed"),
+        tr("the ability to punch bombs"), tr("the ability to grab bombs"), tr("the spooger"), "goldflame", tr("a trigger mechanism"),
+        tr("jelly (bouncy) bombs"), tr("super bad disease"), "random", tr("a speed brake (slowness)"), ""};
     const net::RouletteMsg& show = *client_.roulette();
     r.image(bank.picture("roulette"));
     float x = 0, y = 0;
@@ -1591,12 +1601,12 @@ void NetUi::drawRoulette(Renderer& r, SpriteBank& bank) {
     }
     wheel_->screenPosition(wheel_->pointer(), &x, &y);
     r.sprite(bank, "ring", 0, -1, x, y);
-    const std::string who = show.teamPlay ? "Team " + std::to_string(show.winner + 1) : client_.lobby().seatName(show.winner);
-    const std::string top = "The wheel turns for " + (who.empty() ? std::string("the Gold Player") : who);
+    const std::string who = show.teamPlay ? tr("Team ") + std::to_string(show.winner + 1) : client_.lobby().seatName(show.winner);
+    const std::string top = tr("The wheel turns for ") + (who.empty() ? std::string(tr("the Gold Player")) : who);
     label(r, bank, top, 320.0f - r.textWidth(bank, top) / 2.0f, 100, 1, 1, 1);
     if (wheel_->state() == Roulette::State::Stopped && show.prize >= 0) {
         // The server's word on the prize (it is its wheel that counts).
-        const std::string lines[3] = {"The Gold Player has", kPrizeText[show.prize], "for the next match!!"};
+        const std::string lines[3] = {tr("The Gold Player has"), kPrizeText[show.prize], tr("for the next match!!")};
         for (int i = 0; i < 3; ++i) label(r, bank, lines[i], 320.0f - r.textWidth(bank, lines[i]) / 2.0f, 220.0f + 20.0f * static_cast<float>(i), 1.0f, 0.95f, 0.3f);
     }
 }
@@ -1617,38 +1627,38 @@ void NetUi::drawResult(Renderer& r, SpriteBank& bank) {
         const net::RoundStartMsg& start = client_.roundStart();
         const std::string lines[3] = {end.campaign == 1 ? (end.campaignOver ? "Congratulations!" : "Stage cleared!") : "Oh Well!",
                                       end.campaign == 1 ? (end.campaignOver ? "You made it through the whole campaign!" : "(" + start.stageName + ")")
-                                                        : "Campaign unsuccessful!",
-                                      "Stage " + std::to_string(start.stage) + " of " + std::to_string(start.stages)};
+                                                        : tr("Campaign unsuccessful!"),
+                                      tr("Stage ") + std::to_string(start.stage) + tr(" of ") + std::to_string(start.stages)};
         for (int i = 0; i < 3; ++i)
             label(r, bank, lines[i], 320.0f - r.textWidth(bank, lines[i]) / 2.0f, 190.0f + 28.0f * static_cast<float>(i), i == 0 ? 1.0f : 0.9f, i == 0 ? 0.95f : 0.9f, i == 0 ? 0.3f : 0.9f);
     } else if (end.winner < 0) {
         r.image(bank.picture("draw"));
     } else if (end.teamPlay) {
         r.image(bank.picture("team" + std::to_string(end.winner)));
-        const std::string line = std::string(matchOver ? "TEAM " : "Team ") + std::to_string(end.winner + 1) +
-                                 (matchOver ? " WINS THE MATCH!" : " wins the round   score: " + std::to_string(end.score.wins[static_cast<std::size_t>(end.winner)]));
+        const std::string line = std::string(matchOver ? tr("TEAM ") : tr("Team ")) + std::to_string(end.winner + 1) +
+                                 (matchOver ? tr(" WINS THE MATCH!") : tr(" wins the round   score: ") + std::to_string(end.score.wins[static_cast<std::size_t>(end.winner)]));
         label(r, bank, line, 210, 440, 1.0f, 0.95f, 0.3f);
     } else if (matchOver) {
         r.image(bank.picture("victory" + std::to_string(end.score.matchWinner)));
         std::string who = nameOf(end.score.matchWinner);
         for (char& ch : who) ch = static_cast<char>(std::toupper(static_cast<unsigned char>(ch)));
-        const std::string line = who + " WINS THE MATCH!";
+        const std::string line = who + tr(" WINS THE MATCH!");
         label(r, bank, line, 320.0f - r.textWidth(bank, line) / 2.0f, 440, 1.0f, 0.95f, 0.3f);
     } else {
         r.image(bank.picture("results"));
-        label(r, bank, "(Match winner must score " + std::to_string(client_.winsNeeded()) + (client_.setup().winByKills ? " kills)" : " victories)"), 150, 94, 1, 1, 1);
-        label(r, bank, "Game Winner was " + nameOf(end.winner) + " !", 150, 140, 1, 1, 1);
+        label(r, bank, tr("(Match winner must score ") + std::to_string(client_.winsNeeded()) + (client_.setup().winByKills ? tr(" kills)") : tr(" victories)")), 150, 94, 1, 1, 1);
+        label(r, bank, tr("Game Winner was ") + nameOf(end.winner) + " !", 150, 140, 1, 1, 1);
         int row = 0;
         for (int i = 0; i < kMaxPlayers; ++i) {
             if (!world.player(i).present) continue;
-            const std::string line = nameOf(i) + "   score: " + std::to_string(end.score.wins[static_cast<std::size_t>(i)]) + " (kills: " +
+            const std::string line = nameOf(i) + tr("   score: ") + std::to_string(end.score.wins[static_cast<std::size_t>(i)]) + tr(" (kills: ") +
                                      std::to_string(end.score.kills[static_cast<std::size_t>(i)]) + ")";
             const bool won = i == end.winner;
             label(r, bank, line, 150, 210.0f + 20.0f * static_cast<float>(row++), won ? 1.0f : 0.8f, won ? 0.95f : 0.8f, won ? 0.3f : 0.8f);
         }
     }
     if (menuOpen_ || osk_.shown()) return;
-    const std::string hint = continueSent_ ? "Waiting for the other players..." : "Enter: continue   T: chat";
+    const std::string hint = continueSent_ ? tr("Waiting for the other players...") : tr("Enter: continue   T: chat");
     label(r, bank, hint, 320.0f - r.textWidth(bank, hint) / 2.0f, 460, 0.4f, 1.0f, 1.0f);
 }
 
@@ -1686,9 +1696,9 @@ void NetUi::draw(Renderer& r, SpriteBank& bank, int windowW, int windowH, int fr
         std::vector<std::string> lines;
         if (mode_ == Mode::Error) {
             lines = wrap(r, bank, error_, 400);
-            lines.insert(lines.begin(), "Network game");
+            lines.insert(lines.begin(), tr("Network game"));
         } else {
-            lines = {"Network game", hosting_ ? "Starting the server..." : !connectingText_.empty() ? connectingText_ : "Connecting to " + connectingTo_ + "..."};
+            lines = {tr("Network game"), hosting_ ? tr("Starting the server...") : !connectingText_.empty() ? connectingText_ : tr("Connecting to ") + connectingTo_ + "..."};
         }
         const float boxH = 70.0f + 24.0f * static_cast<float>(lines.size());
         r.quad(100, 180, 440, boxH, 0.0f, 0.0f, 0.10f, 0.88f);

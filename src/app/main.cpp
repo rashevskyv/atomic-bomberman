@@ -393,16 +393,16 @@ std::string findGameDir(const std::string& requested) {
 // How each player slot is controlled, as on the original's player list.
 enum class Control { Off, Key0, Key1, Ai, Pad0, Pad1, Pad2, Pad3 };
 
-const char* controlName(Control c) {
+std::string controlName(Control c) {
     switch (c) {
-        case Control::Key0: return "KEY 0";
-        case Control::Key1: return "KEY 1";
-        case Control::Ai: return "AI";
-        case Control::Pad0: return "JOY 0";
-        case Control::Pad1: return "JOY 1";
-        case Control::Pad2: return "JOY 2";
-        case Control::Pad3: return "JOY 3";
-        default: return "OFF";
+        case Control::Key0: return tr("KEY 0");
+        case Control::Key1: return tr("KEY 1");
+        case Control::Ai: return tr("AI");
+        case Control::Pad0: return tr("JOY 0");
+        case Control::Pad1: return tr("JOY 1");
+        case Control::Pad2: return tr("JOY 2");
+        case Control::Pad3: return tr("JOY 3");
+        default: return tr("OFF");
     }
 }
 
@@ -565,7 +565,7 @@ int runGame(int argc, char** argv, bool& again) {
                              "INFO  No original game files found%s%s: playing with the free asset set.\n"
                              "INFO  To use the original graphics and sounds, import them from your copy of the game:\n"
                              "INFO      atomic --import-assets PATH_TO_ORIGINAL_GAME\n",
-                             requested.empty() ? "" : " under ", requested.c_str());
+                             requested.empty() ? "" : tr(" under "), requested.c_str());
         } else {
             std::fprintf(stderr, "WARN  Cannot write the free asset set to %s: running with placeholder shapes, no menu, no sound.\n", freeDir.c_str());
         }
@@ -1007,9 +1007,9 @@ int runGame(int argc, char** argv, bool& again) {
         // game starts anew by itself; an Android app is not started twice in one go.
         auto startAnew = [&](const std::string& what) {
 #ifdef __ANDROID__
-            showMessage({what, "It takes effect at the next", "start of the game."}, [&]() { screen = Screen::Options; });
+            showMessage({what, tr("It takes effect at the next"), tr("start of the game.")}, [&]() { screen = Screen::Options; });
 #else
-            showMessage({what, "The game starts anew now."}, [&]() {
+            showMessage({what, tr("The game starts anew now.")}, [&]() {
                 again = !unattended || g_runs == 1;  // an unattended run does it once, not for ever
                 running = false;
             });
@@ -1026,7 +1026,7 @@ int runGame(int argc, char** argv, bool& again) {
         bool farewell = false;  // leaving through the menu: say goodbye first
         // The original's quit routine (0x412987) asks first (message 10, buttons 25/26).
         auto askExit = [&]() {
-            askQuestion({"Are you sure you want to exit?"}, [&]() { running = false, farewell = true; }, [&]() { screen = Screen::MainMenu; });
+            askQuestion({tr("Are you sure you want to exit?")}, [&]() { running = false, farewell = true; }, [&]() { screen = Screen::MainMenu; });
         };
         // Next campaign stage (original 0x40133F and 0x40151B): level and scheme from the
         // campaign file, the computer players replaced by the stage's number of them in
@@ -1034,7 +1034,7 @@ int runGame(int argc, char** argv, bool& again) {
         std::function<void()> startCampaignStage = [&]() {
             ++stageIndex;
             if (stageIndex >= static_cast<int>(stages.size())) {
-                showMessage({"Congratulations!", "You made it through the whole campaign!"}, [&]() {  // messages 1220, 1225
+                showMessage({tr("Congratulations!"), tr("You made it through the whole campaign!")}, [&]() {  // messages 1220, 1225
                     campaignMode = false;
                     if (haveMenu) {
                         screen = Screen::MainMenu;
@@ -1065,7 +1065,7 @@ int runGame(int argc, char** argv, bool& again) {
                     break;
                 }
             std::fprintf(stderr, "INFO  Campaign stage=%d name=\"%s\"\n", stageIndex, st.name.c_str());
-            showMessage({"Prepare to begin Campaign!", "(" + st.name + ")"}, [&]() {  // messages 1230, 1235
+            showMessage({tr("Prepare to begin Campaign!"), "(" + st.name + ")"}, [&]() {  // messages 1230, 1235
                 screen = Screen::Match;
                 beginMatch();
                 playLevelMusic();
@@ -1419,14 +1419,14 @@ int runGame(int argc, char** argv, bool& again) {
                         // The original's three checks (0x411BA9-0x411C62), each a "Problem!!" notice.
                         auto back = [&]() { screen = Screen::PlayerList; };
                         if (shared) {
-                            showMessage({"Problem!!", "More than one player selected to an input device!"}, back);  // message 45
+                            showMessage({tr("Problem!!"), tr("More than one player selected to an input device!")}, back);  // message 45
                         } else if (campaignMode) {
                             // No level screen and no two-player minimum in a campaign.
                             if (humans >= 1) startCampaignStage();
                         } else if (n < 2) {
-                            showMessage({"Problem!!", "Must have at least two players selected!"}, back);  // message 46
+                            showMessage({tr("Problem!!"), tr("Must have at least two players selected!")}, back);  // message 46
                         } else if (teamPlay && (perTeam[0] == 0 || perTeam[1] == 0)) {
-                            showMessage({"Problem!!", "Must have at least one player on each team!"}, back);  // message 48
+                            showMessage({tr("Problem!!"), tr("Must have at least one player on each team!")}, back);  // message 48
                         } else {
                             screen = Screen::LevelSetup;
                         }
@@ -1484,7 +1484,7 @@ int runGame(int argc, char** argv, bool& again) {
                     if (key == SDLK_RETURN && n > 0 && startCampaign(campaignFiles[static_cast<std::size_t>(campaignRow)])) {
                         for (Control& c : control)
                             if (c == Control::Ai) c = Control::Off;
-                        showMessage({"NOTE!", "Campaign Mode Activated!"}, [&]() { screen = Screen::PlayerList; });  // messages 95, 1210
+                        showMessage({tr("NOTE!"), tr("Campaign Mode Activated!")}, [&]() { screen = Screen::PlayerList; });  // messages 95, 1210
                     }
                 } else if (screen == Screen::Help) {
                     // Keys of the original's viewer: a line or a page at a time; Enter or Esc closes.
@@ -1563,7 +1563,7 @@ int runGame(int argc, char** argv, bool& again) {
                                 keyCapture = true;
                             } else {
                                 cfg.resetKeys();
-                                showMessage({"NOTE!", "Default key controls restored"}, [&]() { screen = Screen::Keys; });  // message 1131
+                                showMessage({tr("NOTE!"), tr("Default key controls restored")}, [&]() { screen = Screen::Keys; });  // message 1131
                             }
                         }
                         if (key == SDLK_ESCAPE) {
@@ -1603,14 +1603,14 @@ int runGame(int argc, char** argv, bool& again) {
                                 // The memory model takes effect at the next start, so the original
                                 // asks and then exits (messages 1320-1326).
                                 askQuestion(cfg.smallMemory
-                                                ? std::vector<std::string>{"NOTE!  To change to enhanced memory model you will need to",
-                                                                           "exit and restart Bomberman. Do you want to do this?"}
-                                                : std::vector<std::string>{"NOTE!  To change to normal memory model you will need to",
-                                                                           "exit and restart Bomberman. Do you want to do this?"},
+                                                ? std::vector<std::string>{tr("NOTE!  To change to enhanced memory model you will need to"),
+                                                                           tr("exit and restart Bomberman. Do you want to do this?")}
+                                                : std::vector<std::string>{tr("NOTE!  To change to normal memory model you will need to"),
+                                                                           tr("exit and restart Bomberman. Do you want to do this?")},
                                             [&]() {
                                                 cfg.smallMemory = !cfg.smallMemory;
                                                 saveSettings();
-                                                showMessage({"Memory Model Changed!", "Now exiting."}, [&]() { running = false; });
+                                                showMessage({tr("Memory Model Changed!"), tr("Now exiting.")}, [&]() { running = false; });
                                             },
                                             [&]() { screen = Screen::Options; });
                                 break;
@@ -1639,14 +1639,14 @@ int runGame(int argc, char** argv, bool& again) {
                             case 17:
                                 // Original or free data. It is read when the game starts, so the game starts anew.
                                 if (!originalThere) {
-                                    showMessage({"Graphics And Sound", "There is no original game data yet.", "Choose the folder of your copy under",
-                                                 "Original Game Data."},
+                                    showMessage({tr("Graphics And Sound"), tr("There is no original game data yet."), tr("Choose the folder of your copy under"),
+                                                 tr("Original Game Data.")},
                                                 [&]() { screen = Screen::Options; });
                                 } else {
                                     cfg.freeAssets = !ab::isFreeAssetDir(opt.gameDir);
                                     saveSettings();
-                                    startAnew(cfg.freeAssets ? "The game now uses its free graphics and sounds."
-                                                             : "The game now uses the original graphics and sounds.");
+                                    startAnew(cfg.freeAssets ? tr("The game now uses its free graphics and sounds.")
+                                                             : tr("The game now uses the original graphics and sounds."));
                                 }
                                 break;
                         }
@@ -1709,11 +1709,11 @@ int runGame(int argc, char** argv, bool& again) {
                     }
                     if (debugKeys && key == SDLK_D && alt) {
                         // Original Alt-D (0x413D45): messages 400-420. The network lines have nothing to show.
-                        showMessage({"Internal debugging information window",
-                                     "Total mem: " + std::to_string(ab::SpriteBank::textureBytes() + audio.cachedBytes()) +
-                                         ", Audio mem: " + std::to_string(audio.cachedBytes()),
-                                     "Our local net id: 0", "Critical retrans rate: 0.000",
-                                     "Audio cache hits: " + std::to_string(audio.cacheHitPercent()) + "%"},
+                        showMessage({tr("Internal debugging information window"),
+                                     tr("Total mem: ") + std::to_string(ab::SpriteBank::textureBytes() + audio.cachedBytes()) +
+                                         tr(", Audio mem: ") + std::to_string(audio.cachedBytes()),
+                                     tr("Our local net id: 0"), tr("Critical retrans rate: 0.000"),
+                                     tr("Audio cache hits: ") + std::to_string(audio.cacheHitPercent()) + "%"},
                                     [&]() { screen = Screen::Match; });
                     }
                     if (key == SDLK_R && !ctrl) beginMatch();
@@ -1785,7 +1785,7 @@ int runGame(int argc, char** argv, bool& again) {
                         std::fprintf(stderr, "INFO  Campaign stage over result=%d retry=%d\n", world.campaignResult(), world.campaignRetry() ? 1 : 0);
                         if (world.campaignRetry()) --stageIndex;
                         if (world.campaignResult() == 2)
-                            showMessage({"Oh Well!", "Campaign unsuccessful!"}, [&]() { startCampaignStage(); });  // messages 1240, 1245
+                            showMessage({tr("Oh Well!"), tr("Campaign unsuccessful!")}, [&]() { startCampaignStage(); });  // messages 1240, 1245
                         else
                             startCampaignStage();
                         break;
@@ -1913,30 +1913,30 @@ int runGame(int argc, char** argv, bool& again) {
                     } else if (world.teamPlay()) {
                         // Team result: the original's team pictures (white team 0, red team 1).
                         renderer.image(spritesPtr->picture("team" + std::to_string(win)));
-                        const std::string line = std::string(matchOver ? "TEAM " : "Team ") + std::to_string(win + 1) +
-                                                 (matchOver ? " WINS THE MATCH!" : " wins the round   score: " + std::to_string(wins[static_cast<std::size_t>(win)]));
+                        const std::string line = std::string(matchOver ? tr("TEAM ") : tr("Team ")) + std::to_string(win + 1) +
+                                                 (matchOver ? tr(" WINS THE MATCH!") : tr(" wins the round   score: ") + std::to_string(wins[static_cast<std::size_t>(win)]));
                         renderer.text(*spritesPtr, line, 211, 441, 0, 0, 0);
                         renderer.text(*spritesPtr, line, 210, 440, 1.0f, 0.95f, 0.3f);
                     } else if (matchOver) {
                         renderer.image(spritesPtr->picture("victory" + std::to_string(matchWinner)));
-                        const std::string line = "PLAYER " + std::to_string(matchWinner + 1) + " WINS THE MATCH!";  // message 36
+                        const std::string line = tr("PLAYER ") + std::to_string(matchWinner + 1) + tr(" WINS THE MATCH!");  // message 36
                         renderer.text(*spritesPtr, line, 211, 441, 0, 0, 0);  // below the artwork's own title
                         renderer.text(*spritesPtr, line, 210, 440, 1.0f, 0.95f, 0.3f);
                     } else {
                         renderer.image(spritesPtr->picture("results"));
                         // Messages 30, 31 and 120/121 at the original's positions (values 780, 785, 800).
-                        const std::string head = "Game Winner was Player " + std::to_string(win + 1) + " !";
+                        const std::string head = tr("Game Winner was Player ") + std::to_string(win + 1) + " !";
                         renderer.text(*spritesPtr, head, 151, 141, 0, 0, 0);
                         renderer.text(*spritesPtr, head, 150, 140, 1, 1, 1);
-                        const std::string need = "(Match winner must score " + std::to_string(winsNeeded) +
-                                                 (cfg.winByKills ? " kills)" : " victories)");
+                        const std::string need = tr("(Match winner must score ") + std::to_string(winsNeeded) +
+                                                 (cfg.winByKills ? tr(" kills)") : tr(" victories)"));
                         renderer.text(*spritesPtr, need, 151, 95, 0, 0, 0);
                         renderer.text(*spritesPtr, need, 150, 94, 1, 1, 1);
                         int row = 0;
                         for (int i = 0; i < ab::kMaxPlayers; ++i) {
                             if (!world.player(i).present) continue;
-                            const std::string line = "Player " + std::to_string(i + 1) + " score: " +
-                                                     std::to_string(wins[static_cast<std::size_t>(i)]) + " (kills: " +
+                            const std::string line = tr("Player ") + std::to_string(i + 1) + tr(" score: ") +
+                                                     std::to_string(wins[static_cast<std::size_t>(i)]) + tr(" (kills: ") +
                                                      std::to_string(matchKills[static_cast<std::size_t>(i)]) + ")";
                             const float y = 210.0f + 20.0f * static_cast<float>(row++);
                             renderer.text(*spritesPtr, line, 151, y + 1, 0, 0, 0);
@@ -1951,10 +1951,10 @@ int runGame(int argc, char** argv, bool& again) {
                 static const char* const kPower[ab::kPowTypeCount] = {"bomb", "flame", "disease", "kicker", "skate", "punch", "grab",
                                                                     "spooge", "goldflame", "trigger", "jelly", "disease3", "random", "clog"};
                 // Original messages 800-813.
-                static const char* const kPrizeText[ab::kPowTypeCount] = {
-                    "an extra bomb", "longer flame length", "a disease", "the ability to kick bombs", "extra speed",
-                    "the ability to punch bombs", "the ability to grab bombs", "the spooger", "goldflame", "a trigger mechanism",
-                    "jelly (bouncy) bombs", "super bad disease", "random", "a speed brake (slowness)"};
+                const std::string kPrizeText[ab::kPowTypeCount] = {
+                    tr("an extra bomb"), tr("longer flame length"), tr("a disease"), tr("the ability to kick bombs"), tr("extra speed"),
+                    tr("the ability to punch bombs"), tr("the ability to grab bombs"), tr("the spooger"), "goldflame", tr("a trigger mechanism"),
+                    tr("jelly (bouncy) bombs"), tr("super bad disease"), "random", tr("a speed brake (slowness)")};
                 renderer.begin(w, h);
                 renderer.image(spritesPtr->picture("roulette"));
                 float x = 0, y = 0;
@@ -1966,7 +1966,7 @@ int runGame(int argc, char** argv, bool& again) {
                 renderer.sprite(*spritesPtr, "ring", 0, -1, x, y);
                 if (roulette->state() == ab::Roulette::State::Stopped && roulette->prize() >= 0) {
                     // Messages 790, 800 + prize, 791, centred on the wheel 20 px apart.
-                    const std::string lines[3] = {"The Gold Player has", kPrizeText[roulette->prize()], "for the next match!!"};
+                    const std::string lines[3] = {tr("The Gold Player has"), kPrizeText[roulette->prize()], tr("for the next match!!")};
                     for (int r = 0; r < 3; ++r) {
                         const float tx = 320.0f - 4.0f * static_cast<float>(lines[r].size());
                         const float ty = 220.0f + 20.0f * static_cast<float>(r);
@@ -2014,10 +2014,10 @@ int runGame(int argc, char** argv, bool& again) {
                 }
                 if (messageAsks) {
                     // The two buttons, messages 25 and 26.
-                    renderer.text(*spritesPtr, "No", 250, 180.0f + boxH - 30.0f, messageYes ? 0.6f : 1.0f, messageYes ? 0.6f : 0.95f, messageYes ? 0.6f : 0.3f);
-                    renderer.text(*spritesPtr, "Yes", 360, 180.0f + boxH - 30.0f, messageYes ? 1.0f : 0.6f, messageYes ? 0.95f : 0.6f, messageYes ? 0.3f : 0.6f);
+                    renderer.text(*spritesPtr, tr("No"), 250, 180.0f + boxH - 30.0f, messageYes ? 0.6f : 1.0f, messageYes ? 0.6f : 0.95f, messageYes ? 0.6f : 0.3f);
+                    renderer.text(*spritesPtr, tr("Yes"), 360, 180.0f + boxH - 30.0f, messageYes ? 1.0f : 0.6f, messageYes ? 0.95f : 0.6f, messageYes ? 0.3f : 0.6f);
                 } else {
-                    const std::string ok = "Enter: Ok";
+                    const std::string ok = tr("Enter: Ok");
                     renderer.text(*spritesPtr, ok, 320.0f - renderer.textWidth(*spritesPtr, ok) / 2.0f, 180.0f + boxH - 30.0f, 0.4f, 1.0f, 1.0f);
                 }
                 renderer.end();
@@ -2025,13 +2025,13 @@ int runGame(int argc, char** argv, bool& again) {
                 renderer.begin(w, h);
                 renderer.image(spritesPtr->picture("glue0"));
                 renderer.quad(40, 60, 420, 40.0f + 22.0f * static_cast<float>(campaignFiles.size()), 0.0f, 0.0f, 0.10f, 0.82f);
-                renderer.text(*spritesPtr, "Please select a campaign file:", 55, 68, 1, 1, 1);  // message 1250
+                renderer.text(*spritesPtr, tr("Please select a campaign file:"), 55, 68, 1, 1, 1);  // message 1250
                 for (std::size_t r = 0; r < campaignFiles.size(); ++r) {
                     const bool on = static_cast<int>(r) == campaignRow;
                     renderer.text(*spritesPtr, campaignFiles[r], 80, 92.0f + 22.0f * static_cast<float>(r), on ? 1.0f : 0.85f, on ? 0.95f : 0.85f, on ? 0.3f : 0.85f);
                 }
                 renderer.sprite(*spritesPtr, "cursor1", frame / 8, -1, 62.0f, 107.0f + 22.0f * static_cast<float>(campaignRow));
-                renderer.text(*spritesPtr, "Up/Down: select   Enter: play   Esc: back", 60, 440, 0.4f, 1.0f, 1.0f);
+                renderer.text(*spritesPtr, tr("Up/Down: select   Enter: play   Esc: back"), 60, 440, 0.4f, 1.0f, 1.0f);
                 renderer.end();
             } else if (screen == Screen::Help) {
                 renderer.begin(w, h);
@@ -2065,19 +2065,19 @@ int runGame(int argc, char** argv, bool& again) {
                         x += static_cast<float>(pw);
                     }
                 }
-                renderer.text(*spritesPtr, "Up/Down: line   PgUp/PgDn: page   Esc: done", 60, 440, 0.4f, 1.0f, 1.0f);
+                renderer.text(*spritesPtr, tr("Up/Down: line   PgUp/PgDn: page   Esc: done"), 60, 440, 0.4f, 1.0f, 1.0f);
                 renderer.end();
             } else if (screen == Screen::HelpList) {
                 renderer.begin(w, h);
                 renderer.image(spritesPtr->picture("glue" + std::to_string(optionsGlue)));
                 renderer.quad(40, 60, 360, 40.0f + 22.0f * static_cast<float>(helpFiles.size()), 0.0f, 0.0f, 0.10f, 0.82f);
-                renderer.text(*spritesPtr, "Available help files:", 55, 68, 1, 1, 1);  // message 600
+                renderer.text(*spritesPtr, tr("Available help files:"), 55, 68, 1, 1, 1);  // message 600
                 for (std::size_t r = 0; r < helpFiles.size(); ++r) {
                     const bool on = static_cast<int>(r) == helpRow;
                     renderer.text(*spritesPtr, helpFiles[r], 80, 92.0f + 22.0f * static_cast<float>(r), on ? 1.0f : 0.85f, on ? 0.95f : 0.85f, on ? 0.3f : 0.85f);
                 }
                 renderer.sprite(*spritesPtr, "cursor1", frame / 8, -1, 62.0f, 107.0f + 22.0f * static_cast<float>(helpRow));
-                renderer.text(*spritesPtr, "Up/Down: select   Enter: read   Esc: back", 60, 440, 0.4f, 1.0f, 1.0f);
+                renderer.text(*spritesPtr, tr("Up/Down: select   Enter: read   Esc: back"), 60, 440, 0.4f, 1.0f, 1.0f);
                 renderer.end();
             } else if (screen == Screen::Editor) {
                 renderer.begin(w, h);
@@ -2092,7 +2092,7 @@ int runGame(int argc, char** argv, bool& again) {
                 renderer.image(spritesPtr->picture("glue" + std::to_string(optionsGlue)));
                 renderer.quad(30, 20, 580, 404, 0.0f, 0.0f, 0.10f, 0.85f);
                 static const char* const kFilter[3] = {"all", "never played", "used by the game"};
-                renderer.text(*spritesPtr, "Sound Test", 45, 28, 1.0f, 0.95f, 0.3f);
+                renderer.text(*spritesPtr, tr("Sound Test"), 45, 28, 1.0f, 0.95f, 0.3f);
                 renderer.text(*spritesPtr, std::to_string(soundList.size()) + " sounds, " + std::to_string(unused) + " never played.   Showing: " + kFilter[soundFilter], 45, 50, 0.85f, 0.85f, 0.85f);
                 const int top = std::clamp(soundRow - 7, 0, std::max(0, n - 15));
                 for (int r = 0; r < 15 && top + r < n; ++r) {
@@ -2101,9 +2101,9 @@ int runGame(int argc, char** argv, bool& again) {
                     const float y = 78.0f + 21.0f * static_cast<float>(r);
                     const float cr = on ? 1.0f : item.ids.empty() ? 0.6f : 0.85f, cg = on ? 0.95f : item.ids.empty() ? 0.8f : 0.85f, cb = on ? 0.3f : item.ids.empty() ? 1.0f : 0.85f;
                     renderer.text(*spritesPtr, item.name, 70, y, cr, cg, cb);
-                    std::string use = "never played by the game";
+                    std::string use = tr("never played by the game");
                     if (!item.ids.empty()) {
-                        use = "sound " + std::to_string(item.ids[0]);
+                        use = tr("sound ") + std::to_string(item.ids[0]);
                         if (item.ids.size() > 1) use += " and " + std::to_string(item.ids.size() - 1) + " more";
                     }
                     renderer.text(*spritesPtr, use, 230, y, cr, cg, cb);
@@ -2113,39 +2113,39 @@ int runGame(int argc, char** argv, bool& again) {
                     if (on) renderer.sprite(*spritesPtr, "cursor1", frame / 8, -1, 52.0f, y + 15.0f);
                 }
                 if (unused == 0 && !soundList.empty() && !ab::isFreeAssetDir(opt.gameDir))
-                    renderer.text(*spritesPtr, "For the disc's other sounds: atomic --import-assets PATH --all-sounds", 45, 398, 0.7f, 0.7f, 0.7f);
-                renderer.text(*spritesPtr, "Up/Down: choose   Enter: play   Tab: show   Esc: done", 60, 440, 0.4f, 1.0f, 1.0f);
+                    renderer.text(*spritesPtr, tr("For the disc's other sounds: atomic --import-assets PATH --all-sounds"), 45, 398, 0.7f, 0.7f, 0.7f);
+                renderer.text(*spritesPtr, tr("Up/Down: choose   Enter: play   Tab: show   Esc: done"), 60, 440, 0.4f, 1.0f, 1.0f);
                 renderer.end();
             } else if (screen == Screen::AudioAdjust) {
                 renderer.begin(w, h);
                 renderer.image(spritesPtr->picture("glue" + std::to_string(optionsGlue)));
                 renderer.quad(40, 60, 520, 190, 0.0f, 0.0f, 0.10f, 0.82f);
-                renderer.text(*spritesPtr, "Adjust Audio", 55, 68, 1, 1, 1);
-                const std::string rows[3] = {"Music volume: " + std::to_string(cfg.musicVolume) + "%",
-                                             "Sound volume: " + std::to_string(cfg.soundVolume) + "%",
-                                             std::string("Unused voice clips: ") + (cfg.unusedVoices ? "Yes" : "No")};
+                renderer.text(*spritesPtr, tr("Adjust Audio"), 55, 68, 1, 1, 1);
+                const std::string rows[3] = {tr("Music volume: ") + std::to_string(cfg.musicVolume) + "%",
+                                             tr("Sound volume: ") + std::to_string(cfg.soundVolume) + "%",
+                                             std::string(tr("Unused voice clips: ")) + (cfg.unusedVoices ? tr("Yes") : tr("No"))};
                 // What the third row is, and what switching it on found.
-                renderer.text(*spritesPtr, "The disc holds voice lines the game never plays,", 80, 180, 0.7f, 0.7f, 0.7f);
-                renderer.text(*spritesPtr, "some of them coarse. Yes: they are played too.", 80, 198, 0.7f, 0.7f, 0.7f);
+                renderer.text(*spritesPtr, tr("The disc holds voice lines the game never plays,"), 80, 180, 0.7f, 0.7f, 0.7f);
+                renderer.text(*spritesPtr, tr("some of them coarse. Yes: they are played too."), 80, 198, 0.7f, 0.7f, 0.7f);
                 if (cfg.unusedVoices && unusedVoicesFound == 0)
-                    renderer.text(*spritesPtr, ab::isFreeAssetDir(opt.gameDir) ? "The free sounds have none." : "None here: import the original game again.", 80, 222, 1.0f, 0.6f, 0.4f);
+                    renderer.text(*spritesPtr, ab::isFreeAssetDir(opt.gameDir) ? tr("The free sounds have none.") : tr("None here: import the original game again."), 80, 222, 1.0f, 0.6f, 0.4f);
                 else if (cfg.unusedVoices && unusedVoicesFound > 0)
-                    renderer.text(*spritesPtr, std::to_string(unusedVoicesFound) + " clips added.", 80, 222, 0.6f, 1.0f, 0.6f);
+                    renderer.text(*spritesPtr, std::to_string(unusedVoicesFound) + tr(" clips added."), 80, 222, 0.6f, 1.0f, 0.6f);
                 for (int r = 0; r < 3; ++r) {
                     const bool on = r == audioRow;
                     renderer.text(*spritesPtr, rows[r], 80, 100.0f + 24.0f * static_cast<float>(r), on ? 1.0f : 0.85f, on ? 0.95f : 0.85f, on ? 0.3f : 0.85f);
                 }
                 renderer.sprite(*spritesPtr, "cursor1", frame / 8, -1, 62.0f, 115.0f + 24.0f * static_cast<float>(audioRow));
-                renderer.text(*spritesPtr, "Up/Down: select   Left/Right: change   Esc: done", 60, 440, 0.4f, 1.0f, 1.0f);
+                renderer.text(*spritesPtr, tr("Up/Down: select   Left/Right: change   Esc: done"), 60, 440, 0.4f, 1.0f, 1.0f);
                 renderer.end();
             } else if (screen == Screen::Keys) {
-                static const char* const kAction[6] = {"Move Up", "Move Right", "Move Down", "Move Left", "Action 1", "Action 2"};  // 1120-1125
+                const std::string kAction[6] = {tr("Move Up"), tr("Move Right"), tr("Move Down"), tr("Move Left"), tr("Action 1"), tr("Action 2")};  // 1120-1125
                 renderer.begin(w, h);
                 renderer.image(spritesPtr->picture("glue" + std::to_string(optionsGlue)));
                 renderer.quad(40, 30, 560, 380, 0.0f, 0.0f, 0.10f, 0.82f);
-                renderer.text(*spritesPtr, "Keyboard definitions", 55, 40, 1, 1, 1);  // message 1100
+                renderer.text(*spritesPtr, tr("Keyboard definitions"), 55, 40, 1, 1, 1);  // message 1100
                 for (int r = 0; r < 13; ++r) {
-                    std::string line = "Return to default keys";  // message 1130
+                    std::string line = tr("Return to default keys");  // message 1130
                     if (r < 12) {
                         const int dik = cfg.keys[static_cast<std::size_t>(r / 6)][static_cast<std::size_t>(r % 6)];
                         const char* name = SDL_GetScancodeName(scancodeOfDik(dik));
@@ -2157,38 +2157,38 @@ int runGame(int argc, char** argv, bool& again) {
                     if (on) renderer.sprite(*spritesPtr, "cursor1", frame / 8, -1, 62.0f, y + 15.0f);
                 }
                 if (keyCapture) {
-                    const std::string ask = std::string("Press key for '") + kAction[keyRow % 6] + "'";  // message 1105
+                    const std::string ask = std::string(tr("Press key for '")) + kAction[keyRow % 6] + "'";  // message 1105
                     renderer.quad(140, 200, 360, 50, 0.1f, 0.1f, 0.3f, 0.95f);
                     renderer.text(*spritesPtr, ask, 320.0f - renderer.textWidth(*spritesPtr, ask) / 2.0f, 216, 1.0f, 0.95f, 0.3f);
                 }
-                renderer.text(*spritesPtr, "Up/Down: select   Enter: change   Esc: done", 60, 440, 0.4f, 1.0f, 1.0f);
+                renderer.text(*spritesPtr, tr("Up/Down: select   Enter: change   Esc: done"), 60, 440, 0.4f, 1.0f, 1.0f);
                 renderer.end();
             } else if (screen == Screen::Options) {
                 // Messages 250-263 with the original's value texts; rows from (55,40) every 22 px (value 745).
-                static const char* const kYesNo[2] = {"No", "Yes"};
-                static const char* const kSpeed[3] = {"Low", "Medium", "High"};
-                static const char* const kDepth[4] = {"None", "A Little", "A Lot", "All the way!"};
+                const std::string kYesNo[2] = {tr("No"), tr("Yes")};
+                const std::string kSpeed[3] = {tr("Low"), tr("Medium"), tr("High")};
+                const std::string kDepth[4] = {tr("None"), tr("A Little"), tr("A Lot"), tr("All the way!")};
                 std::string folderShown = ab::folder::savedName();  // the end of it, if it is long
                 if (folderShown.size() > 26) folderShown = "..." + folderShown.substr(folderShown.size() - 23);
                 const std::string rows[kOptionRows] = {
-                    std::string("Team Play: ") + kYesNo[teamPlay],
-                    std::string("Random Start: ") + kYesNo[cfg.randomStart],
-                    std::string("Conveyor Speed: ") + kSpeed[cfg.conveyorSpeed],
-                    std::string("Stomped Bombs Detonate: ") + kYesNo[cfg.stompedBombsDetonate],
-                    std::string("Win Matches By Kill Total: ") + kYesNo[cfg.winByKills],
-                    std::string("Gold Bomberman: ") + kYesNo[cfg.goldman],
-                    std::string("Enclosement Depth: ") + kDepth[cfg.enclosementDepth],
-                    "Play Time: " + ab::Settings::playTimeText(cfg.playTime),
-                    std::string("Diseases Can Be Destroyed: ") + kYesNo[cfg.diseasesDestroyable],
-                    std::string("Disable music during gameplay: ") + kYesNo[cfg.disableGameMusic],
-                    std::string("Assign Keyboard Player: ") + kYesNo[cfg.assignKeyboards],
-                    std::string("Network: Show Own Moves At Once: ") + kYesNo[cfg.netPrediction],
-                    "Define keyboard layouts",
-                    std::string("Use Enhanced Memory Model: ") + kYesNo[!cfg.smallMemory],  // message 267
-                    "Adjust Audio",                                                          // message 268
-                    "Sound Test",
-                    "Original Game Data: " + (folderShown.empty() ? std::string("Choose Folder") : folderShown),
-                    std::string("Graphics And Sound: ") + (ab::isFreeAssetDir(opt.gameDir) ? "Free" : "Original")};
+                    std::string(tr("Team Play: ")) + kYesNo[teamPlay],
+                    std::string(tr("Random Start: ")) + kYesNo[cfg.randomStart],
+                    std::string(tr("Conveyor Speed: ")) + kSpeed[cfg.conveyorSpeed],
+                    std::string(tr("Stomped Bombs Detonate: ")) + kYesNo[cfg.stompedBombsDetonate],
+                    std::string(tr("Win Matches By Kill Total: ")) + kYesNo[cfg.winByKills],
+                    std::string(tr("Gold Bomberman: ")) + kYesNo[cfg.goldman],
+                    std::string(tr("Enclosement Depth: ")) + kDepth[cfg.enclosementDepth],
+                    tr("Play Time: ") + ab::Settings::playTimeText(cfg.playTime),
+                    std::string(tr("Diseases Can Be Destroyed: ")) + kYesNo[cfg.diseasesDestroyable],
+                    std::string(tr("Disable music during gameplay: ")) + kYesNo[cfg.disableGameMusic],
+                    std::string(tr("Assign Keyboard Player: ")) + kYesNo[cfg.assignKeyboards],
+                    std::string(tr("Network: Show Own Moves At Once: ")) + kYesNo[cfg.netPrediction],
+                    tr("Define keyboard layouts"),
+                    std::string(tr("Use Enhanced Memory Model: ")) + kYesNo[!cfg.smallMemory],  // message 267
+                    tr("Adjust Audio"),                                                          // message 268
+                    tr("Sound Test"),
+                    tr("Original Game Data: ") + (folderShown.empty() ? std::string(tr("Choose Folder")) : folderShown),
+                    std::string(tr("Graphics And Sound: ")) + (ab::isFreeAssetDir(opt.gameDir) ? tr("Free") : tr("Original"))};
                 renderer.begin(w, h);
                 renderer.image(spritesPtr->picture("glue" + std::to_string(optionsGlue)));
                 for (int r = 0; r < kOptionRows; ++r) {
@@ -2197,7 +2197,7 @@ int runGame(int argc, char** argv, bool& again) {
                     renderer.text(*spritesPtr, rows[r], 55, y, r == optionRow ? 1.0f : 0.85f, r == optionRow ? 0.95f : 0.85f, r == optionRow ? 0.3f : 0.85f);
                 }
                 renderer.sprite(*spritesPtr, "cursor1", frame / 8, -1, 41.0f, 55.0f + 22.0f * static_cast<float>(optionRow));
-                renderer.text(*spritesPtr, "Up/Down: select   Left/Right: change   Esc: done", 60, 440, 0.4f, 1.0f, 1.0f);
+                renderer.text(*spritesPtr, tr("Up/Down: select   Left/Right: change   Esc: done"), 60, 440, 0.4f, 1.0f, 1.0f);
                 renderer.end();
             } else if (screen == Screen::LevelSetup) {
                 const int shownLevel = randomLevel ? -1 : level;
@@ -2237,10 +2237,10 @@ int runGame(int argc, char** argv, bool& again) {
                         }
                 }
                 const std::string lines[4] = {
-                    randomLevel ? "Random Each Game" : ab::kLevelName[level],
-                    schemes.empty() ? std::string("(built-in arena)") : "Scheme: " + schemes[static_cast<std::size_t>(schemeIndex)].title,
-                    std::to_string(winsNeeded) + (cfg.winByKills ? " Kills" : " Wins") + " to win match",  // messages 211, 208/209
-                    std::string("Team play: ") + (teamPlay ? "ON (teams from the scheme)" : "OFF")};
+                    randomLevel ? tr("Random Each Game") : ab::levelName(level),
+                    schemes.empty() ? std::string(tr("(built-in arena)")) : tr("Scheme: ") + schemes[static_cast<std::size_t>(schemeIndex)].title,
+                    std::to_string(winsNeeded) + (cfg.winByKills ? tr(" Kills") : tr(" Wins")) + tr(" to win match"),  // messages 211, 208/209
+                    std::string(tr("Team play: ")) + (teamPlay ? tr("ON (teams from the scheme)") : tr("OFF"))};
                 for (int r = 0; r < 4; ++r) {
                     // Rows from (55,170) every 24 px (original value 735).
                     const float y = 170.0f + 24.0f * static_cast<float>(r);
@@ -2248,7 +2248,7 @@ int runGame(int argc, char** argv, bool& again) {
                     renderer.text(*spritesPtr, lines[r], 55, y, 1, 1, 1);
                 }
                 renderer.sprite(*spritesPtr, "cursor1", frame / 8, -1, 41.0f, 185.0f + 24.0f * static_cast<float>(setupRow));
-                renderer.text(*spritesPtr, "Up/Down: select   Left/Right: change   Enter: start", 60, 440, 0.4f, 1.0f, 1.0f);
+                renderer.text(*spritesPtr, tr("Up/Down: select   Left/Right: change   Enter: start"), 60, 440, 0.4f, 1.0f, 1.0f);
                 renderer.end();
             } else if (screen == Screen::MainMenu) {
                 renderer.begin(w, h);
@@ -2268,7 +2268,7 @@ int runGame(int argc, char** argv, bool& again) {
                 renderer.text(*spritesPtr, tr("Available players:"), 40, 140, 1, 1, 1);
                 const auto& colour = ab::kSeatColour;
                 for (int i = 0; i < ab::kMaxPlayers; ++i) {
-                    std::string line = "Player " + std::to_string(i + 1) + ": " + controlName(control[static_cast<std::size_t>(i)]);
+                    std::string line = tr("Player ") + std::to_string(i + 1) + ": " + controlName(control[static_cast<std::size_t>(i)]);
                     if (teamPlay && control[static_cast<std::size_t>(i)] != Control::Off)
                         line += std::string("   TEAM ") + (teams[static_cast<std::size_t>(i)] == 0 ? "1 (white)" : "2 (red)");
                     const float y = 170.0f + 24.0f * static_cast<float>(i);
@@ -2277,15 +2277,15 @@ int runGame(int argc, char** argv, bool& again) {
                 }
                 renderer.sprite(*spritesPtr, "cursor1", frame / 8, -1, 56.0f, 185.0f + 24.0f * static_cast<float>(listRow));
                 // Messages 40-42 at the original's positions (values 715, 720).
-                renderer.text(*spritesPtr, "Available Joysticks:", 301, 141, 0, 0, 0);
-                renderer.text(*spritesPtr, "Available Joysticks:", 300, 140, 1, 1, 1);
+                renderer.text(*spritesPtr, tr("Available Joysticks:"), 301, 141, 0, 0, 0);
+                renderer.text(*spritesPtr, tr("Available Joysticks:"), 300, 140, 1, 1, 1);
                 if (padCount == 0) renderer.text(*spritesPtr, "None Detected", 320, 170, 0.85f, 0.85f, 0.85f);
                 for (int j = 0; j < padCount; ++j) {
                     const char* name = pads[static_cast<std::size_t>(j)] != nullptr ? SDL_GetGamepadName(pads[static_cast<std::size_t>(j)]) : nullptr;
                     renderer.text(*spritesPtr, "Joy " + std::to_string(j) + " - " + (name != nullptr ? name : "?"), 320,
                                   170.0f + 24.0f * static_cast<float>(j), 0.85f, 0.85f, 0.85f);
                 }
-                renderer.text(*spritesPtr, teamPlay ? "Up/Down: select   Left: off   Right: change   T: team   Enter: start" : "Up/Down: select   Left: off   Right: change   Enter: start", 60, 440, 0.4f, 1.0f, 1.0f);
+                renderer.text(*spritesPtr, teamPlay ? tr("Up/Down: select   Left: off   Right: change   T: team   Enter: start") : tr("Up/Down: select   Left: off   Right: change   Enter: start"), 60, 440, 0.4f, 1.0f, 1.0f);
                 renderer.end();
             }
 
@@ -2298,13 +2298,13 @@ int runGame(int argc, char** argv, bool& again) {
                         cfg.freeAssets = false;
                         saveSettings();
                     }
-                    startAnew("The folder is remembered.");
+                    startAnew(tr("The folder is remembered."));
                 } else if (ab::folder::pickState() == ab::folder::Pick::Failed) {
                     std::fprintf(stderr, "WARN  No folder chooser: %s\n", ab::folder::pickError().c_str());
 #ifdef __SWITCH__
-                    showMessage({"Copy the original game to the SD card:", "/switch/atomic-bomberman/original", "It is converted at the next start."},
+                    showMessage({tr("Copy the original game to the SD card:"), "/switch/atomic-bomberman/original", tr("It is converted at the next start.")},
 #else
-                    showMessage({"No folder chooser on this system.", "The data can be taken with a command:", "atomic --import-assets FOLDER"},
+                    showMessage({tr("No folder chooser on this system."), tr("The data can be taken with a command:"), tr("atomic --import-assets FOLDER")},
 #endif
                                 [&]() { screen = Screen::Options; });
                 }

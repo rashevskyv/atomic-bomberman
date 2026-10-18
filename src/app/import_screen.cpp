@@ -1,3 +1,4 @@
+#include "resources/lang.hpp"
 #include "app/import_screen.hpp"
 
 #include <SDL3/SDL.h>
@@ -15,6 +16,8 @@
 #include "rendering/renderer.hpp"
 #include "rendering/sprites.hpp"
 #include "resources/asset_import.hpp"
+
+using ab::tr;
 
 namespace ab {
 
@@ -118,7 +121,7 @@ public:
     // A text that stays until a key is pressed (unattended: for a few pictures).
     void message(std::vector<Line> lines, const std::string& name) {
         lines.push_back(kGap);
-        lines.push_back(grey("Press a key or touch the screen to go on"));
+        lines.push_back(grey(tr("Press a key or touch the screen to go on")));
         pump();  // what was pressed before does not count
         for (int frame = 0; !closed_; ++frame) {
             const bool pressed = pump();
@@ -186,7 +189,7 @@ public:
 
     // One picture of work in progress.
     void progress(const std::string& from, const std::string& step, float part, const std::string& file, Uint64 start, const std::string& name) {
-        std::vector<Line> lines{yellow("CONVERTING THE ORIGINAL GAME DATA"), kGap, grey("From")};
+        std::vector<Line> lines{yellow(tr("CONVERTING THE ORIGINAL GAME DATA")), kGap, grey(tr("From"))};
         addPath(lines, from);
         lines.push_back(kGap);
         lines.push_back(white(step));
@@ -203,8 +206,8 @@ public:
         }
         below.push_back(Line{buf});
         below.push_back(kGap);
-        below.push_back(grey("This is done once for each release of the game."));
-        below.push_back(grey("Please keep the game open until it is finished."));
+        below.push_back(grey(tr("This is done once for each release of the game.")));
+        below.push_back(grey(tr("Please keep the game open until it is finished.")));
         std::snprintf(buf, sizeof buf, "%d%%", static_cast<int>(part * 100.0f));
         draw(lines, part, buf, below);
         show(name);
@@ -215,14 +218,14 @@ public:
         folder::pick(window_);
         while (!closed_ && folder::pickState() == folder::Pick::Open) {
             pump();
-            draw({yellow("ORIGINAL GAME DATA"), kGap, Line{"Choose the folder that holds your copy of the game..."}}, -1.0f, "", {});
+            draw({yellow(tr("ORIGINAL GAME DATA")), kGap, Line{tr("Choose the folder that holds your copy of the game...")}}, -1.0f, "", {});
             show("");
             SDL_Delay(50);
         }
         if (!closed_ && folder::pickState() == folder::Pick::Failed) {
             std::fprintf(stderr, "WARN  No folder chooser: %s\n", folder::pickError().c_str());
-            message({red("NO FOLDER CHOOSER ON THIS SYSTEM"), kGap, Line{"The data can be taken with a command instead:"}, kGap,
-                     white("atomic --import-assets FOLDER_OF_THE_ORIGINAL_GAME")},
+            message({red(tr("NO FOLDER CHOOSER ON THIS SYSTEM")), kGap, Line{tr("The data can be taken with a command instead:")}, kGap,
+                     white(tr("atomic --import-assets FOLDER_OF_THE_ORIGINAL_GAME"))},
                     "");
         }
         return !closed_ && folder::pickState() == folder::Pick::Chosen;
@@ -252,7 +255,7 @@ public:
         }
         SDL_EnableScreenSaver();
         if (st.state == folder::Staging::State::Done) return {};
-        return st.error.empty() ? "the chosen folder could not be read" : st.error;
+        return st.error.empty() ? tr("the chosen folder could not be read") : st.error;
     }
 
     // The conversion, running beside the pictures. `steps` is 2, or 3 when the files were
@@ -291,10 +294,10 @@ public:
                 inSounds = true;
                 start = SDL_GetTicks();
             }
-            const std::string of = " of " + std::to_string(steps) + ": ";
+            const std::string of = tr(" of ") + std::to_string(steps) + ": ";
             const std::string step = p.total == 0 ? "Looking at the files..."
-                                     : p.sounds   ? "Step " + std::to_string(steps) + of + "converting the sounds and the music"
-                                                  : "Step " + std::to_string(steps - 1) + of + "copying graphics, levels and schemes";
+                                     : p.sounds   ? tr("Step ") + std::to_string(steps) + of + tr("converting the sounds and the music")
+                                                  : tr("Step ") + std::to_string(steps - 1) + of + tr("copying graphics, levels and schemes");
             // Each step has the bar to itself: the sounds are nearly all of the work.
             const int first = p.sounds ? p.dataFiles : 0;
             const int span = p.sounds ? p.total - p.dataFiles : p.dataFiles;
@@ -376,11 +379,11 @@ bool runImportScreens(SDL_Window* window, const ImportScreens& setup) {
     bool fromChosen = dropped.empty() && remembered;
     bool go = convertNow;
     if (!go && offer && chooser) {
-        const std::vector<Line> lines = {yellow("ORIGINAL GAME DATA"), kGap, Line{"The game plays with its own free graphics and sounds."}, kGap,
-                                         Line{"If you own the original Atomic Bomberman (1997) and its"}, Line{"folder (the one with COLOR.PAL and DATA) is at hand,"},
-                                         Line{"choose it now: the game converts the data and plays with"}, Line{"the original graphics, sounds and levels."}, kGap,
-                                         grey("Later: Options, Original Game Data.")};
-        if (screens.choice(lines, "CHOOSE FOLDER", "NOT NOW", "notice") && screens.pickFolder()) go = fromChosen = true;
+        const std::vector<Line> lines = {yellow(tr("ORIGINAL GAME DATA")), kGap, Line{tr("The game plays with its own free graphics and sounds.")}, kGap,
+                                         Line{tr("If you own the original Atomic Bomberman (1997) and its")}, Line{tr("folder (the one with COLOR.PAL and DATA) is at hand,")},
+                                         Line{tr("choose it now: the game converts the data and plays with")}, Line{tr("the original graphics, sounds and levels.")}, kGap,
+                                         grey(tr("Later: Options, Original Game Data."))};
+        if (screens.choice(lines, tr("CHOOSE FOLDER"), tr("NOT NOW"), "notice") && screens.pickFolder()) go = fromChosen = true;
         if (screens.closed()) return false;
         std::ofstream(setup.noticeFile) << "shown\n";
         if (!go) return true;
@@ -402,8 +405,8 @@ bool runImportScreens(SDL_Window* window, const ImportScreens& setup) {
             if (problem.empty() && source.empty()) {
                 source.clear();
                 problem = fs::exists(fs::path(folder::saved()), ec) || folder::staged()
-                              ? "No copy of Atomic Bomberman in the chosen folder: it has to be the folder that holds COLOR.PAL and DATA, or the one above it."
-                              : "The chosen folder is not there any more.";
+                              ? tr("No copy of Atomic Bomberman in the chosen folder: it has to be the folder that holds COLOR.PAL and DATA, or the one above it.")
+                              : tr("The chosen folder is not there any more.");
             }
         }
         ImportReport r;
@@ -421,9 +424,9 @@ bool runImportScreens(SDL_Window* window, const ImportScreens& setup) {
         std::vector<Line> lines;
         if (r.ok) {
             std::snprintf(buf, sizeof buf, "%d data files and %d sounds, %.0f MB", r.dataFiles, r.sounds, static_cast<double>(r.bytes) / 1.0e6);
-            lines = {yellow("THE ORIGINAL GAME DATA IS READY"), kGap, white(buf), kGap,
-                     Line{"The game now plays with the original graphics,"}, Line{"sounds and levels."}, kGap,
-                     Line{"Leave the files where they are: each new release"}, Line{"of the game converts them again."}};
+            lines = {yellow(tr("THE ORIGINAL GAME DATA IS READY")), kGap, white(buf), kGap,
+                     Line{tr("The game now plays with the original graphics,")}, Line{tr("sounds and levels.")}, kGap,
+                     Line{tr("Leave the files where they are: each new release")}, Line{tr("of the game converts them again.")}};
             std::fprintf(stderr, "INFO  Converted: %s\n", buf);
             if (!setup.toldFile.empty()) fs::remove(setup.toldFile, ec);
             screens.message(lines, "done");
@@ -431,47 +434,47 @@ bool runImportScreens(SDL_Window* window, const ImportScreens& setup) {
         }
         std::fprintf(stderr, "WARN  Conversion failed: %s\n", r.error.c_str());
         tellOnce();
-        lines = {red("THE ORIGINAL GAME DATA COULD NOT BE CONVERTED"), kGap};
+        lines = {red(tr("THE ORIGINAL GAME DATA COULD NOT BE CONVERTED")), kGap};
         for (const std::string& piece : screens.wrap(r.error, 580.0f)) lines.push_back(white(piece));
         lines.push_back(kGap);
         if (haveConverted) {
-            lines.push_back(Line{"The data converted before (by release " + madeBy + ") stays in use."});
-            lines.push_back(Line{chooser ? "To convert it anew: Options, Original Game Data." : "A later start tries again."});
+            lines.push_back(Line{tr("The data converted before (by release ") + madeBy + tr(") stays in use.")});
+            lines.push_back(Line{chooser ? tr("To convert it anew: Options, Original Game Data.") : tr("A later start tries again.")});
             screens.message(lines, "failed");
         } else if (chooser) {
             // Nothing to fall back on but the free set: the folder is asked for again.
-            lines.push_back(Line{"The game goes on with its free graphics and sounds."});
-            lines.push_back(grey("Later: Options, Original Game Data."));
-            if (screens.choice(lines, "CHOOSE FOLDER", "NOT NOW", "failed") && screens.pickFolder()) go = fromChosen = true;
+            lines.push_back(Line{tr("The game goes on with its free graphics and sounds.")});
+            lines.push_back(grey(tr("Later: Options, Original Game Data.")));
+            if (screens.choice(lines, tr("CHOOSE FOLDER"), tr("NOT NOW"), "failed") && screens.pickFolder()) go = fromChosen = true;
         } else {
-            lines.push_back(Line{"The game goes on with its free graphics and sounds."});
-            lines.push_back(Line{"A later start tries again."});
+            lines.push_back(Line{tr("The game goes on with its free graphics and sounds.")});
+            lines.push_back(Line{tr("A later start tries again.")});
             screens.message(lines, "failed");
         }
     }
     if (sourceGone && !convertNow) {
         // A new release, and the copy of the original it would convert is not to be found.
         tellOnce();
-        std::vector<Line> lines = {yellow("ORIGINAL GAME DATA"), kGap, Line{"This release would convert the original game data anew,"},
-                                   Line{"but the copy of the original game was not found."}, kGap,
-                                   Line{"The data converted before (by release " + madeBy + ") stays in use."}};
-        if (chooser) lines.push_back(Line{"To convert it anew: Options, Original Game Data."});
+        std::vector<Line> lines = {yellow(tr("ORIGINAL GAME DATA")), kGap, Line{tr("This release would convert the original game data anew,")},
+                                   Line{tr("but the copy of the original game was not found.")}, kGap,
+                                   Line{tr("The data converted before (by release ") + madeBy + tr(") stays in use.")}};
+        if (chooser) lines.push_back(Line{tr("To convert it anew: Options, Original Game Data.")});
         std::fprintf(stderr, "INFO  The original game was not found; the data converted by release %s stays in use\n", madeBy.c_str());
         screens.message(lines, "kept");
     } else if (!convertNow && (unrecognised || (offer && !chooser && !setup.folder.empty()))) {
         std::vector<Line> lines;
         if (unrecognised) {
-            lines = {yellow("NO ORIGINAL GAME FOUND IN THE FOLDER"), kGap, Line{"There are files in"}};
+            lines = {yellow(tr("NO ORIGINAL GAME FOUND IN THE FOLDER")), kGap, Line{tr("There are files in")}};
             screens.addPath(lines, setup.folder);
-            lines.insert(lines.end(), {Line{"but no copy of Atomic Bomberman: the folder that holds"}, Line{"COLOR.PAL and DATA has to be there, or one folder below."}, kGap,
-                                       Line{"The game goes on with what it has."}});
+            lines.insert(lines.end(), {Line{tr("but no copy of Atomic Bomberman: the folder that holds")}, Line{tr("COLOR.PAL and DATA has to be there, or one folder below.")}, kGap,
+                                       Line{tr("The game goes on with what it has.")}});
         } else {
-            lines = {yellow("ORIGINAL GAME DATA"), kGap, Line{"The game plays with its own free graphics and sounds."}, kGap,
-                     Line{"If you own the original Atomic Bomberman (1997),"}, Line{"copy its folder (the one with COLOR.PAL and DATA)"},
-                     Line{"into this folder of the device:"}, kGap};
+            lines = {yellow(tr("ORIGINAL GAME DATA")), kGap, Line{tr("The game plays with its own free graphics and sounds.")}, kGap,
+                     Line{tr("If you own the original Atomic Bomberman (1997),")}, Line{tr("copy its folder (the one with COLOR.PAL and DATA)")},
+                     Line{tr("into this folder of the device:")}, kGap};
             screens.addPath(lines, setup.folder);
-            lines.insert(lines.end(), {kGap, Line{"The next start of the game converts it and plays with"}, Line{"the original graphics, sounds and levels."},
-                                       Line{"The folder can be reached from a computer, by USB."}});
+            lines.insert(lines.end(), {kGap, Line{tr("The next start of the game converts it and plays with")}, Line{tr("the original graphics, sounds and levels.")},
+                                       Line{tr("The folder can be reached from a computer, by USB.")}});
         }
         screens.message(lines, "notice");
     }
