@@ -120,8 +120,7 @@ bool withRetries(const fs::path& to, Try attempt) {
         if (attempt(why)) return true;
         if (!why) why = std::error_code(errno, std::generic_category());
     }
-    std::fprintf(stderr, "WARN  import: cannot write %s: %s (%d)
-", to.string().c_str(), why.message().c_str(), why.value());
+    std::fprintf(stderr, "WARN  import: cannot write %s: %s (%d)\n", to.string().c_str(), why.message().c_str(), why.value());
     return false;
 }
 
