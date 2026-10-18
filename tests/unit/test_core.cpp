@@ -2392,9 +2392,43 @@ void testLanguage() {
     CHECK(reread.language == "uk");
 }
 
+void testUkrainianLetters() {
+    CHECK_EQ(glyphFor(U'А'), 174);
+    CHECK_EQ(glyphFor(U'Ї'), 186);  // the 13th capital of the alphabet
+    CHECK_EQ(glyphFor(U'Я'), 206);
+    CHECK_EQ(glyphFor(U'а'), 207);
+    CHECK_EQ(glyphFor(U'ї'), 219);
+    CHECK_EQ(glyphFor(U'я'), 239);
+    CHECK_EQ(glyphFor(U'Ґ'), 178);
+    CHECK_EQ(glyphFor(U'є'), 214);
+    CHECK_EQ(glyphFor(U'Ъ'), -1);  // Russian-only letters have no slot
+    CHECK_EQ(glyphFor(U'Ы'), -1);
+    CHECK_EQ(glyphFor(U'Ё'), -1);
+    // Each of the 66 letters has its own slot, and the free font draws it with some lit dots.
+    const FreeFont font = makeFreeFont();
+    std::vector<bool> used(256, false);
+    int letters = 0;
+    for (const std::u32string set : {std::u32string(U"АБВГҐДЕЄЖЗИІЇЙКЛМНОПРСТУФХЦЧШЩЬЮЯ"), std::u32string(U"абвгґдеєжзиіїйклмнопрстуфхцчшщьюя")})
+        for (const char32_t c : set) {
+            const int slot = glyphFor(c);
+            ++letters;
+            CHECK(slot >= 174 && slot <= 239);
+            if (slot < 174 || slot > 239) continue;
+            CHECK(!used[static_cast<std::size_t>(slot)]);
+            used[static_cast<std::size_t>(slot)] = true;
+            int lit = 0;
+            for (int y = 0; y < font.height; ++y)
+                for (int x = 0; x < 7; ++x)
+                    if (font.alpha[static_cast<std::size_t>(y * font.atlasWidth + font.x[static_cast<std::size_t>(slot)] + x)] > 0) ++lit;
+            CHECK(lit > 0);
+        }
+    CHECK_EQ(letters, 66);
+}
+
 int main() {
     const std::vector<std::pair<std::string, std::function<void()>>> tests = {
         {"language", testLanguage},
+        {"ukrainian letters", testUkrainianLetters},
         {"geometry", testGeometry},
         {"asset import", testAssetImport},
         {"values parser", testValuesParser},

@@ -10,6 +10,21 @@
 
 namespace ab {
 
+// The Ukrainian letters have slots 174-239 (the free font's unused slots; code page 437
+// has no Cyrillic). The 33 capitals come first, then the 33 small letters, in the order
+// of the Ukrainian alphabet: slot 174 + i is capital i, slot 207 + i is small letter i.
+// Other Cyrillic letters (Ъ Ы Э Ё and the Russian ones) have no slot.
+inline int ukrainianSlot(char32_t c) {
+    static constexpr char32_t kCapitals[] = U"АБВГҐДЕЄЖЗИІЇЙКЛМНОПРСТУФХЦЧШЩЬЮЯ";
+    static constexpr char32_t kSmall[] = U"абвгґдеєжзиіїйклмнопрстуфхцчшщьюя";
+    static_assert(sizeof(kCapitals) / sizeof(kCapitals[0]) == 34 && sizeof(kSmall) / sizeof(kSmall[0]) == 34, "33 letters each");
+    for (int i = 0; i < 33; ++i) {
+        if (kCapitals[i] == c) return 174 + i;
+        if (kSmall[i] == c) return 207 + i;
+    }
+    return -1;
+}
+
 // The font slot of a character, or -1 if the font has none. Accented capitals the
 // font lacks fall back to the plain letter.
 inline int glyphFor(char32_t c) {
@@ -28,7 +43,7 @@ inline int glyphFor(char32_t c) {
         {0xEF, 'i'}, {0xE3, 'a'}, {0xF5, 'o'}, {0xAA, 'a'}, {0xBA, 'o'}};
     for (const Pair& p : kTable)
         if (p.code == c) return p.slot;
-    return -1;
+    return ukrainianSlot(c);
 }
 
 // Reads one character of UTF-8 at s[i] and moves i past it. Bytes that are not UTF-8
