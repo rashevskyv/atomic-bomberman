@@ -162,7 +162,9 @@ std::vector<LanguageChoice> listLanguages(const std::string& dir) {
     std::error_code ec;
     fs::directory_iterator it(dir, ec);
     for (; !ec && it != fs::directory_iterator(); it.increment(ec)) {
-        const std::string file = it->path().filename().string();
+        // UTF-8 bytes: a name the active code page cannot show must not throw here.
+        const auto name = it->path().filename().u8string();
+        const std::string file(reinterpret_cast<const char*>(name.data()), name.size());
         if (file.size() > 5 && file.compare(file.size() - 5, 5, ".json") == 0) codes.push_back(file.substr(0, file.size() - 5));
     }
     std::sort(codes.begin(), codes.end());

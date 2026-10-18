@@ -1673,7 +1673,10 @@ int runGame(int argc, char** argv, bool& again) {
                                     spritesPtr = std::make_unique<ab::SpriteBank>();
                                     spritesPtr->load(opt.gameDir, shownLevel);
                                 }
-                                if (ab::isFreeAssetDir(opt.gameDir)) ab::writeFreeHelp(opt.gameDir);
+                                if (ab::isFreeAssetDir(opt.gameDir)) {
+                                    ab::writeFreeHelp(opt.gameDir);
+                                    ab::applyMods(userFile("mods"), opt.gameDir);  // a mod's own help pages win again
+                                }
                                 saveSettings();
                                 break;
                             }

@@ -2401,6 +2401,13 @@ void testLanguage() {
     CHECK(nextLanguage(choices, "", -1).code == "uk");                 // and back
     CHECK(nextLanguage(choices, "fi", 1).code == "de");                // not in the list: counts as English
     CHECK(nextLanguage({}, "uk", 1).code.empty());                     // no list at all: English
+    // A code is a plain name (ASCII letters, digits, - and _, as loadLanguage requires): a file with
+    // another name is not offered, and listing it does not throw.
+    { std::ofstream(dir / u8"мова.json", std::ios::binary) << "{\"_language_name\": \"Мова\"}"; }
+    bool named = false;
+    for (const LanguageChoice& choice : listLanguages(dir.string())) named = named || choice.code == "мова";
+    CHECK(!named);
+    CHECK_EQ(listLanguages(dir.string()).size(), 3u);
 
     // The free set's help pages are written in the language now loaded.
     { std::ofstream(dir / "uk.json", std::ios::binary) << "{\"ATOMIC BOMBERMAN - MODERN\\n\\n\": \"ТЕСТ\\n\\n\"}"; }
@@ -2443,9 +2450,9 @@ void testLanguage() {
 void testOptionsLayout() {
     using namespace ab::options;
     CHECK_EQ(kLanguageRow, kRows - 1);  // the language row is the last one, after the original's rows
-    // Each row's text (up to 16 px tall, the largest font) ends above the key hint, and each row starts
-    // on the screen.
-    CHECK(rowY(kRows - 1) + 16.0f <= kHintY);
+    // Each row's text (up to 18 px tall: the free font is 18 px, makeFreeFont) ends above the key hint,
+    // and each row starts on the screen.
+    CHECK(rowY(kRows - 1) + 18.0f <= kHintY);
     CHECK(rowY(0) >= 0.0f && kTextX + 580.0f <= kTextRight);
 }
 
