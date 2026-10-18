@@ -365,5 +365,7 @@
     "Move Down": "Вниз",
     "Move Left": "Ліворуч",
     "Action 1": "Дія 1",
-    "Action 2": "Дія 2"
+    "Action 2": "Дія 2",
+    "Copy the original game to the SD card:": "Скопіюйте оригінальну гру на карту SD:",
+    "It is converted at the next start.": "Її буде перетворено при наступному запуску."
 }
