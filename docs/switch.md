@@ -11,6 +11,9 @@ the file `log.txt` (see below) tells what happened.
 1. Copy `atomic.nro` to `/switch/` on the SD card.
 2. Start it from the Homebrew Menu. Start it by taking over a game's title (hold R when opening a
    game), not through the Album: the Album gives homebrew very little memory.
+   Or send it from a computer on the same network with nxlink (Homebrew Menu: press **Y** to wait
+   for it): `nxlink -a CONSOLE_IP -s atomic.nro`. With `-s` the log of the game appears in the
+   terminal as it is written, instead of in `log.txt`.
 3. The game makes its folder on the SD card, `/switch/atomic-bomberman/`:
 
 | Path | What |

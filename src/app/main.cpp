@@ -2345,8 +2345,9 @@ int main(int argc, char** argv) {
 #ifdef __SWITCH__
     // Network sockets, controllers, and a log on the SD card (a console has no terminal to read).
     abx::makeHome();
-    std::freopen("/switch/atomic-bomberman/log.txt", "w", stderr);
     socketInitializeDefault();
+    // Started with nxlink (nxlink -s atomic.nro): the log goes to the computer's terminal as it is written.
+    if (nxlinkStdio() < 0) std::freopen("/switch/atomic-bomberman/log.txt", "w", stderr);
 #endif
     for (;;) {
         bool again = false;
