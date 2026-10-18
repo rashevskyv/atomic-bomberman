@@ -35,6 +35,7 @@
 #include "resources/asset_import.hpp"
 #include "resources/campaign_file.hpp"
 #include "resources/help_file.hpp"
+#include "resources/lang.hpp"
 #include "resources/mve_file.hpp"
 #include "resources/scheme_file.hpp"
 #include "resources/settings.hpp"
@@ -43,8 +44,12 @@ namespace {
 
 constexpr int kStepMs = 50;  // fixed simulation step: the original's nominal frame
 
+using ab::tr;
+
 struct Options {
     std::string gameDir;
+    std::string language;     // --language CODE: the text in lang/CODE.json (uk: Ukrainian); empty: options.ini, else English
+    std::string langDir;      // --lang-dir DIR: where the language files are (default: the per-user lang folder)
     std::string scheme = "basic";
     int players = 2;
     int humans = 1;           // slots 0..humans-1 use the keyboard (max 2); the rest are computer players
@@ -116,6 +121,8 @@ Options parseArgs(int argc, char** argv) {
                       "                       (about 180 MB more; hear them under Options, Sound Test)\n"
                       "  --game-dir DIR       imported assets or an original game folder to play from\n"
                       "  --free               play with the free asset set even if original game data is found\n"
+                      "  --language CODE      text language: uk for Ukrainian (lang/CODE.json; default: options.ini, else English)\n"
+                      "  --lang-dir DIR       folder of the language files (default: the per-user lang folder)\n"
                       "  --start              skip the menu and start a match at once\n"
                       "  --scheme NAME        scheme (map) to play, e.g. BASIC\n"
                       "  --level N            level theme 0-10\n"
@@ -179,6 +186,8 @@ Options parseArgs(int argc, char** argv) {
         else if (a == "--gles") o.gles = true;
         else if (a == "--touch") o.touch = true;
         else if (a == "--free") o.freeAssets = true;
+        else if (a == "--language") o.language = next();
+        else if (a == "--lang-dir") o.langDir = next();
         else if (a == "--debug") o.debug = true;
         else if (a == "--attract-seconds") o.attractSeconds = std::atoi(next().c_str());
         else if (a == "--intro-shot") o.introShot = std::atoi(next().c_str());
@@ -512,8 +521,13 @@ int runGame(int argc, char** argv, bool& again) {
     const bool unattended = opt.frames > 0 || opt.menuShot > 0 || !opt.script.empty() || opt.demo;
     if (!unattended) {
         ab::Settings early;
-        if (early.load(userFile("options.ini")) && early.freeAssets) opt.freeAssets = true;
+        if (early.load(userFile("options.ini"))) {
+            if (early.freeAssets) opt.freeAssets = true;
+            if (opt.language.empty()) opt.language = early.language;  // the flag wins over options.ini
+        }
     }
+    // The text language, before any screen is drawn. Automated runs read only the flag.
+    ab::loadLanguage(opt.langDir.empty() ? userFile("lang") : opt.langDir, opt.language);
     // Unattended runs show these screens only when asked to with --import-folder.
     if ((!opt.importFolder.empty() || !unattended) && requested.empty() && !opt.freeAssets && ab::ensureFreeAssets(freeDir, true)) {
         ab::ImportScreens screens;
@@ -2250,8 +2264,8 @@ int runGame(int argc, char** argv, bool& again) {
                 renderer.begin(w, h);
                 renderer.image(spritesPtr->picture("glue0"));
                 // Original layout: heading at (40,140), list from (70,170) every 24 px (values 705/710).
-                renderer.text(*spritesPtr, "Available players:", 41, 141, 0, 0, 0);
-                renderer.text(*spritesPtr, "Available players:", 40, 140, 1, 1, 1);
+                renderer.text(*spritesPtr, tr("Available players:"), 41, 141, 0, 0, 0);
+                renderer.text(*spritesPtr, tr("Available players:"), 40, 140, 1, 1, 1);
                 const auto& colour = ab::kSeatColour;
                 for (int i = 0; i < ab::kMaxPlayers; ++i) {
                     std::string line = "Player " + std::to_string(i + 1) + ": " + controlName(control[static_cast<std::size_t>(i)]);

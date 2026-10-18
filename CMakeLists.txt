@@ -40,7 +40,7 @@ ab_warnings(ab_game)
 # Readers for the original game's data files (legacy formats stay out of the core).
 add_library(ab_resources src/resources/scheme_file.cpp src/resources/ani_file.cpp src/resources/asset_import.cpp
     src/resources/settings.cpp src/resources/help_file.cpp src/resources/campaign_file.cpp src/resources/mve_file.cpp
-    src/resources/unused_voices.cpp)
+    src/resources/unused_voices.cpp src/resources/lang.cpp)
 target_link_libraries(ab_resources PUBLIC ab_game)
 ab_warnings(ab_resources)
 

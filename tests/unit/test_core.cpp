@@ -19,6 +19,7 @@
 #include "game/world.hpp"
 #include "resources/campaign_file.hpp"
 #include "resources/help_file.hpp"
+#include "resources/lang.hpp"
 #include "resources/mve_file.hpp"
 #include "resources/unused_voices.hpp"
 #include "resources/settings.hpp"
@@ -2347,8 +2348,53 @@ void testAssetImport() {
     fs::remove_all(root);
 }
 
+void testLanguage() {
+    LanguageTable t;
+    CHECK(parseLanguageTable("{\"Players\": \"Гравці\", \"Say \\\"hi\\\"\\n\": \"\\u0422\\u0430\"}", t));
+    CHECK(t["Players"] == "Гравці");
+    CHECK(t["Say \"hi\"\n"] == "Та");                                  // escapes read as JSON writes them
+    CHECK(parseLanguageTable("\xEF\xBB\xBF{}", t));                     // a byte-order mark is allowed
+    CHECK(parseLanguageTable("{\"emoji\": \"\\ud83d\\ude00\"}", t));    // a surrogate pair
+    CHECK(t["emoji"] == "\xF0\x9F\x98\x80");
+    CHECK(!parseLanguageTable("{\"a\": 1}", t));                        // values must be strings
+    CHECK(!parseLanguageTable("{\"a\": \"b\",}", t));                   // no trailing comma
+    CHECK(!parseLanguageTable("[]", t));
+
+    CHECK(fillPlaceholders("{0} and {1}", {"a", "b"}) == "a and b");
+    CHECK(fillPlaceholders("{1}{0}", {"a", "b"}) == "ba");              // order follows the translator
+    CHECK(fillPlaceholders("{2} {{x}} {", {"a"}) == "{2} {x} {");       // missing argument stays; braces escaped
+    CHECK(fillPlaceholders("{{0}}", {"a"}) == "{0}");
+
+    const std::filesystem::path dir = std::filesystem::temp_directory_path() / "ab-lang-test";
+    std::filesystem::create_directories(dir);
+    { std::ofstream(dir / "uk.json", std::ios::binary) << "{\"Available players:\": \"Доступні гравці:\", \"{0} of {1}\": \"{1} з {0}\", \"Empty\": \"\"}"; }
+    { std::ofstream(dir / "bad.json", std::ios::binary) << "{\"Available players:\": 3}"; }
+    CHECK(loadLanguage(dir.string(), "uk"));
+    CHECK(tr("Available players:") == "Доступні гравці:");
+    CHECK(tr("Sound Test") == "Sound Test");                            // no key: English
+    CHECK(tr("Empty") == "Empty");                                      // an empty translation is no translation
+    CHECK(trf("{0} of {1}", {"2", "5"}) == "5 з 2");
+    CHECK(trf("{0} left", {"3"}) == "3 left");                          // no key: the placeholder still fills
+    CHECK(!loadLanguage(dir.string(), "bad"));                          // not a table: English
+    CHECK(tr("Available players:") == "Available players:");
+    CHECK(!loadLanguage(dir.string(), "de"));                           // no file: English
+    CHECK(!loadLanguage(dir.string(), "../uk"));                        // a code is a plain name
+    CHECK(loadLanguage(dir.string(), "en"));
+    CHECK(tr("Sound Test") == "Sound Test");
+    std::filesystem::remove_all(dir);  // the test's own folder
+
+    Settings s;
+    s.parse("language=uk\nnet_name=Tester\n");
+    CHECK(s.language == "uk");
+    CHECK(s.serialize().find("\nlanguage=uk\n") != std::string::npos);
+    Settings reread;
+    reread.parse(s.serialize());
+    CHECK(reread.language == "uk");
+}
+
 int main() {
     const std::vector<std::pair<std::string, std::function<void()>>> tests = {
+        {"language", testLanguage},
         {"geometry", testGeometry},
         {"asset import", testAssetImport},
         {"values parser", testValuesParser},
