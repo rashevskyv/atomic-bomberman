@@ -565,7 +565,7 @@ int runGame(int argc, char** argv, bool& again) {
                              "INFO  No original game files found%s%s: playing with the free asset set.\n"
                              "INFO  To use the original graphics and sounds, import them from your copy of the game:\n"
                              "INFO      atomic --import-assets PATH_TO_ORIGINAL_GAME\n",
-                             requested.empty() ? "" : tr(" under "), requested.c_str());
+                             requested.empty() ? "" : " under ", requested.c_str());
         } else {
             std::fprintf(stderr, "WARN  Cannot write the free asset set to %s: running with placeholder shapes, no menu, no sound.\n", freeDir.c_str());
         }
