@@ -397,7 +397,7 @@ const char* controlName(Control c) {
     }
 }
 
-constexpr int kOptionRows = 18;  // the original's, and this implementation's: sound test, original game data, which data to use
+constexpr int kOptionRows = 19;  // the original's, and this implementation's: sound test, original game data, which data to use
 enum class Screen { MainMenu, PlayerList, LevelSetup, Match, Roulette, Options, Help, HelpList, Message, CampaignList, Intro, Keys, Editor, AudioAdjust, Movie, Net, SoundTest };
 
 using ab::SchemeEntry;
@@ -616,6 +616,7 @@ int runGame(int argc, char** argv, bool& again) {
 
     {
         ab::Renderer renderer;
+        renderer.setSharpScale(cfg.sharpScale);
         // Settings that the level screen can change.
         int level = opt.level;
         int winsNeeded = opt.wins;
@@ -1636,6 +1637,11 @@ int runGame(int argc, char** argv, bool& again) {
                                                              : "The game now uses the original graphics and sounds.");
                                 }
                                 break;
+                            case 18:  // this implementation's: crisp whole-number pixels, fitted to the screen
+                                cfg.sharpScale = !cfg.sharpScale;
+                                renderer.setSharpScale(cfg.sharpScale);
+                                saveSettings();
+                                break;
                         }
                     }
                     if (key == SDLK_ESCAPE) {
@@ -2123,7 +2129,7 @@ int runGame(int argc, char** argv, bool& again) {
                     renderer.text(*spritesPtr, rows[r], 80, 100.0f + 24.0f * static_cast<float>(r), on ? 1.0f : 0.85f, on ? 0.95f : 0.85f, on ? 0.3f : 0.85f);
                 }
                 renderer.sprite(*spritesPtr, "cursor1", frame / 8, -1, 62.0f, 115.0f + 24.0f * static_cast<float>(audioRow));
-                renderer.text(*spritesPtr, "Up/Down: select   Left/Right: change   Esc: done", 60, 440, 0.4f, 1.0f, 1.0f);
+                renderer.text(*spritesPtr, "Up/Down: select   Left/Right: change   Esc: done", 60, 462, 0.4f, 1.0f, 1.0f);
                 renderer.end();
             } else if (screen == Screen::Keys) {
                 static const char* const kAction[6] = {"Move Up", "Move Right", "Move Down", "Move Left", "Action 1", "Action 2"};  // 1120-1125
@@ -2175,7 +2181,8 @@ int runGame(int argc, char** argv, bool& again) {
                     "Adjust Audio",                                                          // message 268
                     "Sound Test",
                     "Original Game Data: " + (folderShown.empty() ? std::string("Choose Folder") : folderShown),
-                    std::string("Graphics And Sound: ") + (ab::isFreeAssetDir(opt.gameDir) ? "Free" : "Original")};
+                    std::string("Graphics And Sound: ") + (ab::isFreeAssetDir(opt.gameDir) ? "Free" : "Original"),
+                    std::string("Sharp Pixel Scale: ") + kYesNo[cfg.sharpScale]};
                 renderer.begin(w, h);
                 renderer.image(spritesPtr->picture("glue" + std::to_string(optionsGlue)));
                 for (int r = 0; r < kOptionRows; ++r) {
@@ -2296,6 +2303,7 @@ int runGame(int argc, char** argv, bool& again) {
                                 [&]() { screen = Screen::Options; });
                 }
             }
+            renderer.present(w, h);  // the sharp pixel scale: the picture goes to the window before the touch controls
             touch.draw(renderer, w, h);
             ++frame;
             if (opt.resultShot && screen == Screen::Match && world.roundOver() && roundOverSteps == 50) {
