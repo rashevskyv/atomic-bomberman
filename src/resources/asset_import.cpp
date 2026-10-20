@@ -56,9 +56,13 @@ bool copyFile(const fs::path& from, const fs::path& to, ImportReport& report, st
         fs::remove(to, ec);
     }
     ec.clear();
-    fs::copy_file(from, to, fs::copy_options::overwrite_existing, ec);
-    if (ec) {
-        why = ec;
+    // Streams, not fs::copy_file: on the Switch's C library copy_file fails with "Function not implemented".
+    std::ifstream in(from, std::ios::binary);
+    std::ofstream out(to, std::ios::binary);
+    if (in && out && in.peek() != std::char_traits<char>::eof()) out << in.rdbuf();  // an empty file adds nothing, and `<<` would set failbit
+    out.flush();
+    if (!in || !out) {
+        why = std::error_code(errno, std::generic_category());
         return false;
     }
     std::error_code ignored;

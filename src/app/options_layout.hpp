@@ -4,11 +4,11 @@
 
 namespace ab::options {
 
-constexpr int kRows = 19;         // the rows, in order (main.cpp): the last one is the language
-constexpr int kLanguageRow = 18;  // Language: English, Українська, ... (Left and Right choose)
+constexpr int kRows = 20;         // the rows, in order (main.cpp): the last one is the language
+constexpr int kLanguageRow = 19;  // Language: English, Українська, ... (Left and Right choose)
 constexpr float kTextX = 55.0f;   // the row text's left edge; the cursor is left of it
-constexpr float kRowTop = 40.0f;  // the first row's text top
-constexpr float kRowStep = 22.0f; // the original's spacing between rows
+constexpr float kRowTop = 30.0f;  // the first row's text top (40 in the original, which had 18 rows)
+constexpr float kRowStep = 21.0f; // the space between rows (22 in the original): 20 rows fit above the hint
 constexpr float kHintY = 456.0f;  // the key hint under the rows (it was 440 with 18 rows)
 constexpr float kTextRight = 635.0f;  // a row must end before this x (the screen edge less a margin)
 

@@ -27,6 +27,7 @@
 #include "resources/unused_voices.hpp"
 #include "resources/settings.hpp"
 #include "rendering/glyphs.hpp"
+#include "rendering/sharp_scale.hpp"
 #include "resources/ani_file.hpp"
 #include "resources/asset_import.hpp"
 #include "resources/scheme_file.hpp"
@@ -2348,6 +2349,15 @@ void testAssetImport() {
     Settings read;
     read.parse(chosen.serialize());
     CHECK(read.freeAssets);
+    // The sharp pixel scale is kept in the settings, in both directions.
+    Settings sharp;
+    sharp.sharpScale = !Settings().sharpScale;
+    Settings sharpRead;
+    sharpRead.parse(sharp.serialize());
+    CHECK(sharpRead.sharpScale == sharp.sharpScale);
+    // Its whole-number factor: the smallest one not below the fit of the window.
+    CHECK(sharpFactor(1280, 720) == 2 && sharpFactor(1920, 1080) == 3 && sharpFactor(1280, 960) == 2 && sharpFactor(640, 480) == 1 &&
+          sharpFactor(320, 240) == 1 && sharpFactor(3840, 2160) == 4 && sharpFactor(1281, 961) == 3);
     fs::remove_all(root);
 }
 

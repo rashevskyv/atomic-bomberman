@@ -408,7 +408,7 @@ std::string controlName(Control c) {
 }
 
 // The Options rows: the original's, then this implementation's (sound test, original game data,
-// which data to use, language). The language row is the last one; see options_layout.hpp.
+// which data to use, sharp pixel scale, language). The language row is the last one; see options_layout.hpp.
 constexpr int kOptionRows = ab::options::kRows;
 enum class Screen { MainMenu, PlayerList, LevelSetup, Match, Roulette, Options, Help, HelpList, Message, CampaignList, Intro, Keys, Editor, AudioAdjust, Movie, Net, SoundTest };
 
@@ -491,6 +491,7 @@ int runGame(int argc, char** argv, bool& again) {
         return 1;
     }
     SDL_GL_SetSwapInterval(opt.frames > 0 ? 0 : 1);  // automated runs do not wait for the display
+    std::fprintf(stderr, "INFO  Atomic Bomberman (modern) " AB_VERSION "\n");
     std::fprintf(stderr, "INFO  OpenGL %s\n", reinterpret_cast<const char*>(glGetString(GL_VERSION)));
 
     std::string requested = opt.gameDir;
@@ -641,6 +642,7 @@ int runGame(int argc, char** argv, bool& again) {
 
     {
         ab::Renderer renderer;
+        renderer.setSharpScale(cfg.sharpScale);
         // Settings that the level screen can change.
         int level = opt.level;
         int winsNeeded = opt.wins;
@@ -1661,7 +1663,12 @@ int runGame(int argc, char** argv, bool& again) {
                                                              : tr("The game now uses the original graphics and sounds."));
                                 }
                                 break;
-                            case 18: {
+                            case 18:  // this implementation's: crisp whole-number pixels, fitted to the screen
+                                cfg.sharpScale = !cfg.sharpScale;
+                                renderer.setSharpScale(cfg.sharpScale);
+                                saveSettings();
+                                break;
+                            case ab::options::kLanguageRow: {
                                 // Language: the next file of the language folder, applied at once. The text is read as
                                 // each screen draws; the pictures that carry text are made again (SpriteBank caches them).
                                 const std::string code = ab::nextLanguage(languages, opt.language, d).code;
@@ -2224,6 +2231,7 @@ int runGame(int argc, char** argv, bool& again) {
                     tr("Sound Test"),
                     tr("Original Game Data: ") + (folderShown.empty() ? std::string(tr("Choose Folder")) : folderShown),
                     std::string(tr("Graphics And Sound: ")) + (ab::isFreeAssetDir(opt.gameDir) ? tr("Free") : tr("Original")),
+                    std::string(tr("Sharp Pixel Scale: ")) + kYesNo[cfg.sharpScale],
                     std::string(tr("Language: ")) + langName};
                 renderer.begin(w, h);
                 renderer.image(spritesPtr->picture("glue" + std::to_string(optionsGlue)));
@@ -2345,6 +2353,7 @@ int runGame(int argc, char** argv, bool& again) {
                                 [&]() { screen = Screen::Options; });
                 }
             }
+            renderer.present(w, h);  // the sharp pixel scale: the picture goes to the window before the touch controls
             touch.draw(renderer, w, h);
             ++frame;
             if (opt.resultShot && screen == Screen::Match && world.roundOver() && roundOverSteps == 50) {

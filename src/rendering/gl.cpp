@@ -42,6 +42,11 @@ void (AB_GLAPI* glUniformMatrix4fv)(GLint, GLsizei, GLboolean, const GLfloat*) =
 void (AB_GLAPI* glUseProgram)(GLuint) = nullptr;
 void (AB_GLAPI* glVertexAttribPointer)(GLuint, GLint, GLenum, GLboolean, GLsizei, const void*) = nullptr;
 void (AB_GLAPI* glViewport)(GLint, GLint, GLsizei, GLsizei) = nullptr;
+void (AB_GLAPI* glBindFramebuffer)(GLenum, GLuint) = nullptr;
+GLenum (AB_GLAPI* glCheckFramebufferStatus)(GLenum) = nullptr;
+void (AB_GLAPI* glDeleteFramebuffers)(GLsizei, const GLuint*) = nullptr;
+void (AB_GLAPI* glFramebufferTexture2D)(GLenum, GLenum, GLenum, GLuint, GLint) = nullptr;
+void (AB_GLAPI* glGenFramebuffers)(GLsizei, GLuint*) = nullptr;
 
 namespace ab {
 
@@ -100,6 +105,11 @@ bool loadOpenGL() {
     ok = load(glUseProgram, "glUseProgram") && ok;
     ok = load(glVertexAttribPointer, "glVertexAttribPointer") && ok;
     ok = load(glViewport, "glViewport") && ok;
+    ok = load(glBindFramebuffer, "glBindFramebuffer") && ok;
+    ok = load(glCheckFramebufferStatus, "glCheckFramebufferStatus") && ok;
+    ok = load(glDeleteFramebuffers, "glDeleteFramebuffers") && ok;
+    ok = load(glFramebufferTexture2D, "glFramebufferTexture2D") && ok;
+    ok = load(glGenFramebuffers, "glGenFramebuffers") && ok;
     return ok;
 }
 

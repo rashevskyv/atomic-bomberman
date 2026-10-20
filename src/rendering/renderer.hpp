@@ -43,6 +43,12 @@ public:
     // what follows is drawn over the picture already there (text over the playfield).
     void begin(int windowW, int windowH, bool clear = true);
     void end();
+    // Sharp pixel scale (see rendering/sharp_scale.hpp): the logical screen is drawn into a texture
+    // at a whole-number multiple and present() fits it to the window. Off: drawn straight into the window.
+    void setSharpScale(bool on) { sharp_ = on; }
+    // With the sharp scale on, puts what begin() drew onto the window. Call it once a frame before
+    // anything drawn in window pixels (beginWindow() does it too) and before the buffers are swapped.
+    void present(int windowW, int windowH);
     // As begin(), but in window pixels over the whole window, and without clearing.
     void beginWindow(int windowW, int windowH);
     void image(unsigned texture);  // full-screen picture (dark fill if 0)
@@ -67,6 +73,7 @@ private:
     };
     void textured(unsigned texture, float x, float y, float w, float h);
     void setTexture(unsigned texture);
+    bool ensureTarget(int factor);
     void flush();
     void drawHud(const World& world, SpriteBank* bank, const std::array<int, kMaxPlayers>* wins);
     void digit(int value, float x, float y, float r, float g, float b);
@@ -90,6 +97,10 @@ private:
     int projLoc_ = -1;
     unsigned white_ = 0;    // 1x1 texture for untextured quads
     unsigned current_ = 0;  // texture of the pending batch
+    bool sharp_ = false;       // sharp pixel scale wanted
+    bool sceneDirty_ = false;  // something was drawn into the target and not yet presented
+    unsigned fbo_ = 0, fboTex_ = 0;
+    int fboFactor_ = 0;
     std::vector<Vertex> batch_;
 };
 
