@@ -128,6 +128,15 @@ bool withRetries(const fs::path& to, Try attempt) {
     return false;
 }
 
+// fs::remove_all does nothing on the Switch (its C library lacks a call it needs), so the old
+// converted folder stayed and the new one could not take its place. One level at a time instead.
+void removeTree(const fs::path& path) {
+    std::error_code ec;
+    if (fs::is_directory(path, ec))
+        for (const auto& entry : fs::directory_iterator(path, ec)) removeTree(entry.path());
+    fs::remove(path, ec);
+}
+
 }  // namespace
 
 bool looksLikeOriginalGame(const std::string& folder) {
@@ -335,14 +344,14 @@ ImportReport importForRelease(const std::string& source, const std::string& conv
     fs::path work = target;
     work += ".new";
     std::error_code ec;
-    fs::remove_all(work, ec);  // what an interrupted conversion left behind
+    removeTree(work);  // what an interrupted conversion left behind
     ImportReport report = importAssets(source, work.string(), allSounds, progress);
     if (report.ok && !writeImportStamp(work.string(), release, allSounds)) {
         report.ok = false;
         report.error = "cannot write into " + work.string();
     }
     if (report.ok) {
-        fs::remove_all(target, ec);
+        removeTree(target);
         ec.clear();
         fs::rename(work, target, ec);
         if (ec) {
@@ -350,7 +359,7 @@ ImportReport importForRelease(const std::string& source, const std::string& conv
             report.error = "cannot put the converted files in place: " + ec.message();
         }
     }
-    if (!report.ok) fs::remove_all(work, ec);
+    if (!report.ok) removeTree(work);
     return report;
 }
 
