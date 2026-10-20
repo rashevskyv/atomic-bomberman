@@ -18,6 +18,10 @@
 #include <thread>
 #include <vector>
 
+#ifdef __SWITCH__
+#include <unistd.h>  // rmdir
+#endif
+
 namespace ab {
 
 namespace fs = std::filesystem;
@@ -128,13 +132,21 @@ bool withRetries(const fs::path& to, Try attempt) {
     return false;
 }
 
-// fs::remove_all does nothing on the Switch (its C library lacks a call it needs), so the old
-// converted folder stayed and the new one could not take its place. One level at a time instead.
+// On the Switch fs::remove_all deleted the files but left every folder (its C library's remove()
+// unlinks files only), so the old converted folder stayed and the new one could not take its place.
+// One entry at a time, folders with rmdir.
 void removeTree(const fs::path& path) {
     std::error_code ec;
-    if (fs::is_directory(path, ec))
-        for (const auto& entry : fs::directory_iterator(path, ec)) removeTree(entry.path());
+    const bool folder = fs::is_directory(path, ec);
+    if (folder) {
+        std::vector<fs::path> entries;  // listed first: deleting while reading the folder can skip entries
+        for (const auto& entry : fs::directory_iterator(path, ec)) entries.push_back(entry.path());
+        for (const fs::path& entry : entries) removeTree(entry);
+    }
     fs::remove(path, ec);
+#ifdef __SWITCH__
+    if (ec && folder) ::rmdir(path.c_str());
+#endif
 }
 
 }  // namespace
