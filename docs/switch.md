@@ -1,14 +1,14 @@
 # Nintendo Switch
 
 A port for homebrew (`atomic.nro`), built by `.github/workflows/switch.yml` with devkitA64 and libnx.
-The workflow keeps the finished `atomic.nro` as the artifact `atomic-bomberman-switch`.
+The workflow keeps the finished package as the artifact `atomic-bomberman-modern-switch`.
 
 **State of things:** it builds. It has not been run on a console yet, so the first run is a test:
 the file `log.txt` (see below) tells what happened.
 
 ## Installing
 
-1. Copy `atomic.nro` to `/switch/` on the SD card.
+1. Unpack `atomic-bomberman-modern-switch.zip` onto the root of the SD card: it puts `atomic-bomberman.nro` in `/switch/atomic-bomberman/`. (A build from Actions artifacts has the same zip.)
 2. Start it from the Homebrew Menu. Start it by taking over a game's title (hold R when opening a
    game), not through the Album: the Album gives homebrew very little memory.
    Or send it from a computer on the same network with nxlink (Homebrew Menu: press **Y** to wait

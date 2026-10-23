@@ -270,7 +270,7 @@ if(SDL3_FOUND)
     ab_warnings(${AB_APP})
     if(AB_SWITCH)
         # atomic.nro for /switch/ on the SD card.
-        nx_generate_nacp(OUTPUT atomic.nacp NAME "Atomic Bomberman" AUTHOR "elraro" VERSION "${PROJECT_VERSION}")
+        nx_generate_nacp(OUTPUT atomic.nacp NAME "Atomic Bomberman" AUTHOR "Atomic Bomberman Modern" VERSION "${PROJECT_VERSION}")
         nx_create_nro(${AB_APP} NACP atomic.nacp)
     endif()
 else()

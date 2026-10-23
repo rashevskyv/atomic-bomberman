@@ -21,6 +21,7 @@ For the import you need:
 | `atomic-bomberman-modern-windows-arm64.zip` | Windows 11 on ARM |
 | `atomic-bomberman-modern-macos-universal.zip` | macOS 11 or later: the application **Atomic Bomberman**, for Apple silicon and Intel alike (see the note below) |
 | `atomic-bomberman-modern-android.apk` | Android 7.0 or later (new; see `android/README.md`) |
+| `atomic-bomberman-modern-switch.zip` | Nintendo Switch with custom firmware (new; unpack onto the SD card, see `docs/switch.md`) |
 | `atomic-bomberman-server-linux-x86_64.tar.gz`, `…-linux-arm64.tar.gz` | Only the dedicated network server, Linux (no graphics needed) |
 | `atomic-bomberman-server-windows-x64.zip`, `…-windows-arm64.zip` | Only the dedicated network server, Windows |
 | `atomic-bomberman-server-macos-universal.tar.gz` | Only the dedicated network server, macOS |
