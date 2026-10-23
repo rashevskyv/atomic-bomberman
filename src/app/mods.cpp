@@ -35,11 +35,14 @@ int applyMods(const std::string& mods, const std::string& target) {
         std::error_code e2;
         if (fs::exists(to, e2) && fs::file_size(to, e2) == it->file_size(e2) && fs::last_write_time(to, e2) >= it->last_write_time(e2)) continue;
         fs::create_directories(to.parent_path(), e2);
-        if (fs::copy_file(it->path(), to, fs::copy_options::overwrite_existing, e2)) {
+        // (Streams, not fs::copy_file: on the Switch's C library that fails with "Function not implemented".)
+        std::ifstream in(it->path(), std::ios::binary);
+        std::ofstream out(to, std::ios::binary | std::ios::trunc);
+        if (in && out && (out << in.rdbuf() || it->file_size(e2) == 0) && out.flush()) {
             ++copied;
             std::fprintf(stderr, "INFO  Mod file %s\n", relative.string().c_str());
         } else {
-            std::fprintf(stderr, "WARN  Could not copy the mod file %s: %s\n", relative.string().c_str(), e2.message().c_str());
+            std::fprintf(stderr, "WARN  Could not copy the mod file %s\n", relative.string().c_str());
         }
     }
     return copied;
