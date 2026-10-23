@@ -1,4 +1,5 @@
 #include "rendering/renderer.hpp"
+#include "rendering/sharp_scale.hpp"
 
 #include "rendering/gl.hpp"
 #include "rendering/glyphs.hpp"
@@ -130,6 +131,8 @@ Renderer::Renderer() {
 }
 
 Renderer::~Renderer() {
+    if (fbo_ != 0) glDeleteFramebuffers(1, &fbo_);
+    if (fboTex_ != 0) glDeleteTextures(1, &fboTex_);
     glDeleteTextures(1, &white_);
     glDeleteBuffers(1, &vbo_);
     glDeleteVertexArrays(1, &vao_);
@@ -196,7 +199,60 @@ void Renderer::flush() {
     batch_.clear();
 }
 
+// The target of the sharp pixel scale: a texture of the logical screen times `factor`.
+bool Renderer::ensureTarget(int factor) {
+    if (fbo_ != 0 && fboFactor_ == factor) return true;
+    if (fbo_ != 0) glDeleteFramebuffers(1, &fbo_);
+    if (fboTex_ != 0) glDeleteTextures(1, &fboTex_);
+    fbo_ = fboTex_ = 0;
+    glGenTextures(1, &fboTex_);
+    glBindTexture(GL_TEXTURE_2D, fboTex_);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, static_cast<int>(kScreenW) * factor, static_cast<int>(kScreenH) * factor, 0, GL_RGBA,
+                 GL_UNSIGNED_BYTE, nullptr);
+    glGenFramebuffers(1, &fbo_);
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo_);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, fboTex_, 0);
+    const bool ok = glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE;
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    current_ = 0;  // the bound texture changed behind the batcher's back
+    if (!ok) {
+        std::fprintf(stderr, "WARN  Sharp pixel scale: the render target is not complete, drawing straight into the window.\n");
+        glDeleteFramebuffers(1, &fbo_);
+        glDeleteTextures(1, &fboTex_);
+        fbo_ = fboTex_ = 0;
+        fboFactor_ = 0;
+        sharp_ = false;
+        return false;
+    }
+    fboFactor_ = factor;
+    return true;
+}
+
 void Renderer::begin(int windowW, int windowH, bool clear) {
+    if (sharp_ && ensureTarget(sharpFactor(windowW, windowH))) {
+        // Draw the 640x480 screen at factor times its size into the target; present() fits it to the window.
+        flush();
+        glBindFramebuffer(GL_FRAMEBUFFER, fbo_);
+        glViewport(0, 0, static_cast<int>(kScreenW) * fboFactor_, static_cast<int>(kScreenH) * fboFactor_);
+        if (clear) {
+            glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+            glClear(GL_COLOR_BUFFER_BIT);
+        }
+        sceneDirty_ = true;
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        const float proj[16] = {2.0f / kScreenW, 0, 0, 0, 0, -2.0f / kScreenH, 0, 0, 0, 0, -1, 0, -1, 1, 0, 1};
+        glUseProgram(program_);
+        glUniformMatrix4fv(projLoc_, 1, GL_FALSE, proj);
+        glUniform1i(glGetUniformLocation(program_, "uTex"), 0);
+        return;
+    }
+    if (fbo_ != 0) glBindFramebuffer(GL_FRAMEBUFFER, 0);  // the sharp scale was switched off
+    sceneDirty_ = false;
     // Letterbox the 640x480 logical screen into the window.
     const float scale = std::min(static_cast<float>(windowW) / kScreenW, static_cast<float>(windowH) / kScreenH);
     const int vw = static_cast<int>(kScreenW * scale);
@@ -221,6 +277,7 @@ void Renderer::begin(int windowW, int windowH, bool clear) {
 // left, nothing cleared. On a wide phone screen the game sits in the middle and the
 // controls go beside it.
 void Renderer::beginWindow(int windowW, int windowH) {
+    present(windowW, windowH);
     flush();
     glViewport(0, 0, windowW, windowH);
     glEnable(GL_BLEND);
@@ -233,6 +290,31 @@ void Renderer::beginWindow(int windowW, int windowH) {
 }
 
 void Renderer::end() { flush(); }
+
+void Renderer::present(int windowW, int windowH) {
+    flush();
+    if (!sceneDirty_) return;
+    sceneDirty_ = false;
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glViewport(0, 0, windowW, windowH);
+    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT);
+    // The same letterbox as without the sharp scale; the target is upside down (OpenGL's rows run upwards).
+    const float scale = std::min(static_cast<float>(windowW) / kScreenW, static_cast<float>(windowH) / kScreenH);
+    const int vw = static_cast<int>(kScreenW * scale);
+    const int vh = static_cast<int>(kScreenH * scale);
+    glViewport((windowW - vw) / 2, (windowH - vh) / 2, vw, vh);
+    const float proj[16] = {2.0f / kScreenW, 0, 0, 0, 0, -2.0f / kScreenH, 0, 0, 0, 0, -1, 0, -1, 1, 0, 1};
+    glUseProgram(program_);
+    glUniformMatrix4fv(projLoc_, 1, GL_FALSE, proj);
+    glUniform1i(glGetUniformLocation(program_, "uTex"), 0);
+    setTexture(fboTex_);
+    const float w = kScreenW, h = kScreenH;
+    const Vertex v[6] = {{0, 0, 0, 1, 1, 1, 1, 1}, {w, 0, 1, 1, 1, 1, 1, 1}, {w, h, 1, 0, 1, 1, 1, 1},
+                         {0, 0, 0, 1, 1, 1, 1, 1}, {w, h, 1, 0, 1, 1, 1, 1}, {0, h, 0, 0, 1, 1, 1, 1}};
+    batch_.insert(batch_.end(), v, v + 6);
+    flush();
+}
 
 void Renderer::image(unsigned texture) {
     if (texture != 0)

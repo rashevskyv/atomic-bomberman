@@ -1,0 +1,112 @@
+name: switch
+
+# Builds the Nintendo Switch port (devkitA64 + libnx) inside devkitPro's container.
+# Milestone 1: the libraries that have no window or SDL in them (game rules, readers
+# for the original game's files, the free asset set, network play).
+
+on:
+  push:
+    branches: [main, "claude/**"]
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  libs:
+    runs-on: ubuntu-24.04
+    container: devkitpro/devkita64:latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure
+        run: |
+          source /opt/devkitpro/switchvars.sh
+          cmake -S . -B build-switch \
+            -DCMAKE_TOOLCHAIN_FILE=/opt/devkitpro/cmake/Switch.cmake \
+            -DAB_ONLINE=OFF -DCMAKE_BUILD_TYPE=Release
+      - name: Build the libraries
+        run: |
+          source /opt/devkitpro/switchvars.sh
+          cmake --build build-switch --target ab_game ab_resources ab_free ab_net -j"$(nproc)"
+
+  online:
+    runs-on: ubuntu-24.04
+    container: devkitpro/devkita64:latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure (online play on)
+        run: |
+          source /opt/devkitpro/switchvars.sh
+          cmake -S . -B build-switch \
+            -DCMAKE_TOOLCHAIN_FILE=/opt/devkitpro/cmake/Switch.cmake \
+            -DAB_ONLINE=ON -DCMAKE_BUILD_TYPE=Release
+      - name: Build the online library
+        run: |
+          source /opt/devkitpro/switchvars.sh
+          cmake --build build-switch --target ab_online -j"$(nproc)"
+
+  game:
+    runs-on: ubuntu-24.04
+    container: devkitpro/devkita64:latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install SDL2 and Mesa for the Switch
+        run: |
+          for try in 1 2 3 4 5; do
+            dkp-pacman -Syu --noconfirm switch-sdl2 switch-mesa switch-glad && break
+            echo "devkitPro's package server failed (try $try); waiting"
+            sleep $((try * 20))
+          done
+          test -d /opt/devkitpro/portlibs/switch/include/SDL2
+      - name: Configure
+        run: |
+          source /opt/devkitpro/switchvars.sh
+          cmake -S . -B build-switch \
+            -DCMAKE_TOOLCHAIN_FILE=/opt/devkitpro/cmake/Switch.cmake \
+            -DAB_ONLINE=ON -DCMAKE_BUILD_TYPE=Release
+      - name: Build atomic.nro
+        run: |
+          source /opt/devkitpro/switchvars.sh
+          set +e
+          cmake --build build-switch -j"$(nproc)" -- -k 2>&1 | tee build.log
+          status=${PIPESTATUS[0]}
+          echo "=== ERRORS ==="
+          grep -E "error:|undefined reference|cannot find" build.log | sed 's|/__w/atomic-bomberman/atomic-bomberman/||' | sort -u | head -80
+          [ "$status" = 0 ] || exit 1
+          find build-switch -name '*.nro' -o -name '*.nacp' | xargs ls -la
+          # The zip is unpacked onto the root of the SD card: Homebrew Menu then lists the game as a folder.
+          mkdir -p dist/switch/atomic-bomberman
+          cp build-switch/atomic.nro dist/switch/atomic-bomberman/atomic-bomberman.nro
+          (cd dist && apt-get update -qq && apt-get install -y -qq zip >/dev/null && zip -qr ../atomic-bomberman-modern-switch.zip switch)
+          ls -la atomic-bomberman-modern-switch.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: atomic-bomberman-modern-switch
+          path: atomic-bomberman-modern-switch.zip
+          if-no-files-found: error
+
+  release:
+    # On a version tag (v*), attach the package to the GitHub release that build.yml makes for
+    # the other platforms (whichever workflow gets there first makes it; the other adds to it).
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [libs, online, game]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: atomic-bomberman-modern-switch
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: atomic-bomberman-modern-switch.zip

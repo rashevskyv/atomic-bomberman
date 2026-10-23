@@ -6,11 +6,16 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cerrno>
+#include <chrono>
 #include <cstdint>
+#include <cstdio>
+#include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <iterator>
 #include <sstream>
+#include <thread>
 #include <vector>
 
 namespace ab {
@@ -41,7 +46,7 @@ fs::path findPath(fs::path dir, std::initializer_list<const char*> parts) {
     return dir;
 }
 
-bool copyFile(const fs::path& from, const fs::path& to, ImportReport& report) {
+bool copyFile(const fs::path& from, const fs::path& to, ImportReport& report, std::error_code& why) {
     std::error_code ec;
     fs::create_directories(to.parent_path(), ec);
     // Files copied from a CD arrive read-only, and a read-only file cannot be written over:
@@ -51,8 +56,15 @@ bool copyFile(const fs::path& from, const fs::path& to, ImportReport& report) {
         fs::remove(to, ec);
     }
     ec.clear();
-    fs::copy_file(from, to, fs::copy_options::overwrite_existing, ec);
-    if (ec) return false;
+    // Streams, not fs::copy_file: on the Switch's C library copy_file fails with "Function not implemented".
+    std::ifstream in(from, std::ios::binary);
+    std::ofstream out(to, std::ios::binary);
+    if (in && out && in.peek() != std::char_traits<char>::eof()) out << in.rdbuf();  // an empty file adds nothing, and `<<` would set failbit
+    out.flush();
+    if (!in || !out) {
+        why = std::error_code(errno, std::generic_category());
+        return false;
+    }
     std::error_code ignored;
     fs::permissions(to, fs::perms::owner_write, fs::perm_options::add, ignored);
     ++report.dataFiles;
@@ -98,6 +110,22 @@ bool convertRssToWav(const fs::path& from, const fs::path& to, ImportReport& rep
     ++report.sounds;
     report.bytes += static_cast<long long>(h.size() + pcm.size());
     return static_cast<bool>(out);
+}
+
+// A write to a slow or busy memory card can fail once and work on the next try: three tries,
+// and the reason of the last failure goes to the log (a console has no other way to tell).
+template <class Try>
+bool withRetries(const fs::path& to, Try attempt) {
+    std::error_code why;
+    for (int tryNo = 0; tryNo < 3; ++tryNo) {
+        if (tryNo > 0) std::this_thread::sleep_for(std::chrono::milliseconds(200));
+        errno = 0;
+        why.clear();
+        if (attempt(why)) return true;
+        if (!why) why = std::error_code(errno, std::generic_category());
+    }
+    std::fprintf(stderr, "WARN  import: cannot write %s: %s (%d)\n", to.string().c_str(), why.message().c_str(), why.value());
+    return false;
 }
 
 }  // namespace
@@ -216,7 +244,7 @@ ImportReport importAssets(const std::string& source, const std::string& destinat
 
     for (const Copy& c : copies) {
         if (!tell(c.to.filename().string(), false)) return report;
-        if (!copyFile(c.from, c.to, report)) ++report.failed;
+        if (!withRetries(c.to, [&](std::error_code& why) { return copyFile(c.from, c.to, report, why); })) ++report.failed;
     }
 
     // The intro movie sits at the end of the original's small player program; only the
@@ -241,7 +269,8 @@ ImportReport importAssets(const std::string& source, const std::string& destinat
     for (const Sound& snd : sounds) {
         if (!tell(snd.name + ".wav", true)) return report;
         const int before = report.sounds;
-        const bool ok = !snd.rss.empty() && convertRssToWav(snd.rss, dst / "data" / "sound" / (snd.name + ".wav"), report);
+        const fs::path wav = dst / "data" / "sound" / (snd.name + ".wav");
+        const bool ok = !snd.rss.empty() && withRetries(wav, [&](std::error_code&) { return convertRssToWav(snd.rss, wav, report); });
         if (snd.extra) {
             report.sounds = before;  // counted apart
             report.extraSounds += ok ? 1 : 0;

@@ -26,6 +26,11 @@ struct Settings {
     int soundVolume = 100;            // "Adjust Audio" screen was never made)
     bool unusedVoices = false;        // unused_voices: also play the voice clips of the disc that the original never plays (not in the original)
     bool assignKeyboards = true;      // assign_keyboards: a keyboard player in the default player list
+#ifdef __SWITCH__
+    bool sharpScale = true;           // sharp_scale: draw at a whole-number multiple, then fit to the screen (not in the original)
+#else
+    bool sharpScale = false;          // sharp_scale: draw at a whole-number multiple, then fit to the screen (not in the original)
+#endif
     bool freeAssets = false;          // free_assets: play with the free graphics and sounds although original data is there (not in the original)
     // Network play (this implementation's client-server mode; not the original's keys).
     std::string netName;              // net_name: the player's name; empty until first set

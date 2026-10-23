@@ -134,7 +134,12 @@ void SDLCALL answered(void*, const char* const* list, int) {
 
 void setStore(const std::string& file) { g_store = file; }
 
+#ifdef __SWITCH__
+// No chooser on the console: the original game is copied to a folder on the SD card instead.
+bool available() { return false; }
+#else
 bool available() { return !g_store.empty(); }
+#endif
 
 void pick(SDL_Window* window) {
     g_state = static_cast<int>(Pick::Open);

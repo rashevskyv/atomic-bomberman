@@ -20,6 +20,7 @@
 #include "app/editor.hpp"
 #include "app/original_folder.hpp"
 #include "app/import_screen.hpp"
+#include "app/mods.hpp"
 #include "app/names.hpp"
 #include "app/net_ui.hpp"
 #include "app/pad_keys.hpp"
@@ -73,6 +74,9 @@ struct Options {
 #ifdef __ANDROID__
     bool gles = true;         // OpenGL ES 3.0 (always on a phone)
     bool touch = true;        // on-screen controls
+#elif defined(__SWITCH__)
+    bool gles = true;         // OpenGL ES 3.0 (the only kind the console's SDL2 has)
+    bool touch = false;
 #else
     bool gles = false;        // --gles: OpenGL ES 3.0 instead of OpenGL 3.3
     bool touch = false;       // --touch: on-screen controls, worked with the mouse
@@ -393,7 +397,7 @@ const char* controlName(Control c) {
     }
 }
 
-constexpr int kOptionRows = 18;  // the original's, and this implementation's: sound test, original game data, which data to use
+constexpr int kOptionRows = 19;  // the original's, and this implementation's: sound test, original game data, which data to use
 enum class Screen { MainMenu, PlayerList, LevelSetup, Match, Roulette, Options, Help, HelpList, Message, CampaignList, Intro, Keys, Editor, AudioAdjust, Movie, Net, SoundTest };
 
 using ab::SchemeEntry;
@@ -441,13 +445,16 @@ int runGame(int argc, char** argv, bool& again) {
         std::fprintf(stderr, "ERROR SDL_Init: %s\n", SDL_GetError());
         return 1;
     }
-    // Desktop: OpenGL 3.3. Phones (and --gles, for trying that path on a desktop): OpenGL ES 3.0.
+#ifdef __SWITCH__
+    abx::startControllers();
+#endif
+    // Desktop: OpenGL 3.3. Phones, the Switch (and --gles, for trying that path on a desktop): OpenGL ES 3.0.
     ab::setOpenGLES(opt.gles);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, opt.gles ? 0 : 3);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, opt.gles ? SDL_GL_CONTEXT_PROFILE_ES : SDL_GL_CONTEXT_PROFILE_CORE);
     SDL_Window* window = SDL_CreateWindow("Atomic Bomberman (modern)", opt.native ? 640 : 960, opt.native ? 480 : 720,
-#ifdef __ANDROID__
+#if defined(__ANDROID__) || defined(__SWITCH__)
                                           SDL_WINDOW_OPENGL | SDL_WINDOW_FULLSCREEN);
 #else
                                           SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
@@ -472,6 +479,7 @@ int runGame(int argc, char** argv, bool& again) {
         return 1;
     }
     SDL_GL_SetSwapInterval(opt.frames > 0 ? 0 : 1);  // automated runs do not wait for the display
+    std::fprintf(stderr, "INFO  Atomic Bomberman (modern) " AB_VERSION "\n");
     std::fprintf(stderr, "INFO  OpenGL %s\n", reinterpret_cast<const char*>(glGetString(GL_VERSION)));
 
     std::string requested = opt.gameDir;
@@ -496,6 +504,10 @@ int runGame(int argc, char** argv, bool& again) {
             opt.importFolder = std::string(shared) + "/original";
             stagingDir = std::string(shared) + "/import-staging";  // the roomier storage
         }
+#endif
+#ifdef __SWITCH__
+    // On the SD card: the user copies the original game into this folder and it is converted at the next start.
+    if (opt.importFolder.empty()) opt.importFolder = std::string(abx::kHome) + "original";
 #endif
     // Saved choice (Options, Graphics And Sound): the free set although original data is there.
     const bool unattended = opt.frames > 0 || opt.menuShot > 0 || !opt.script.empty() || opt.demo;
@@ -545,6 +557,9 @@ int runGame(int argc, char** argv, bool& again) {
             std::fprintf(stderr, "WARN  Cannot write the free asset set to %s: running with placeholder shapes, no menu, no sound.\n", freeDir.c_str());
         }
     }
+#ifdef __SWITCH__
+    if (!opt.gameDir.empty()) ab::applyMods(std::string(abx::kHome) + "mods", opt.gameDir);
+#endif
     if (!opt.gameDir.empty()) {
         std::fprintf(stderr, "INFO  Game files: %s%s\n", opt.gameDir.c_str(), ab::isFreeAssetDir(opt.gameDir) ? " (free asset set)" : "");
         opt.titleOnly = ab::isFreeAssetDir(opt.gameDir);  // the intro movie and logos are the original's: only the title screen
@@ -601,6 +616,7 @@ int runGame(int argc, char** argv, bool& again) {
 
     {
         ab::Renderer renderer;
+        renderer.setSharpScale(cfg.sharpScale);
         // Settings that the level screen can change.
         int level = opt.level;
         int winsNeeded = opt.wins;
@@ -1621,6 +1637,11 @@ int runGame(int argc, char** argv, bool& again) {
                                                              : "The game now uses the original graphics and sounds.");
                                 }
                                 break;
+                            case 18:  // this implementation's: crisp whole-number pixels, fitted to the screen
+                                cfg.sharpScale = !cfg.sharpScale;
+                                renderer.setSharpScale(cfg.sharpScale);
+                                saveSettings();
+                                break;
                         }
                     }
                     if (key == SDLK_ESCAPE) {
@@ -2108,7 +2129,7 @@ int runGame(int argc, char** argv, bool& again) {
                     renderer.text(*spritesPtr, rows[r], 80, 100.0f + 24.0f * static_cast<float>(r), on ? 1.0f : 0.85f, on ? 0.95f : 0.85f, on ? 0.3f : 0.85f);
                 }
                 renderer.sprite(*spritesPtr, "cursor1", frame / 8, -1, 62.0f, 115.0f + 24.0f * static_cast<float>(audioRow));
-                renderer.text(*spritesPtr, "Up/Down: select   Left/Right: change   Esc: done", 60, 440, 0.4f, 1.0f, 1.0f);
+                renderer.text(*spritesPtr, "Up/Down: select   Left/Right: change   Esc: done", 60, 462, 0.4f, 1.0f, 1.0f);
                 renderer.end();
             } else if (screen == Screen::Keys) {
                 static const char* const kAction[6] = {"Move Up", "Move Right", "Move Down", "Move Left", "Action 1", "Action 2"};  // 1120-1125
@@ -2160,7 +2181,8 @@ int runGame(int argc, char** argv, bool& again) {
                     "Adjust Audio",                                                          // message 268
                     "Sound Test",
                     "Original Game Data: " + (folderShown.empty() ? std::string("Choose Folder") : folderShown),
-                    std::string("Graphics And Sound: ") + (ab::isFreeAssetDir(opt.gameDir) ? "Free" : "Original")};
+                    std::string("Graphics And Sound: ") + (ab::isFreeAssetDir(opt.gameDir) ? "Free" : "Original"),
+                    std::string("Sharp Pixel Scale: ") + kYesNo[cfg.sharpScale]};
                 renderer.begin(w, h);
                 renderer.image(spritesPtr->picture("glue" + std::to_string(optionsGlue)));
                 for (int r = 0; r < kOptionRows; ++r) {
@@ -2273,10 +2295,15 @@ int runGame(int argc, char** argv, bool& again) {
                     startAnew("The folder is remembered.");
                 } else if (ab::folder::pickState() == ab::folder::Pick::Failed) {
                     std::fprintf(stderr, "WARN  No folder chooser: %s\n", ab::folder::pickError().c_str());
+#ifdef __SWITCH__
+                    showMessage({"Copy the original game to the SD card:", "/switch/atomic-bomberman/original", "It is converted at the next start."},
+#else
                     showMessage({"No folder chooser on this system.", "The data can be taken with a command:", "atomic --import-assets FOLDER"},
+#endif
                                 [&]() { screen = Screen::Options; });
                 }
             }
+            renderer.present(w, h);  // the sharp pixel scale: the picture goes to the window before the touch controls
             touch.draw(renderer, w, h);
             ++frame;
             if (opt.resultShot && screen == Screen::Match && world.roundOver() && roundOverSteps == 50) {
@@ -2324,6 +2351,15 @@ int runGame(int argc, char** argv, bool& again) {
 }
 
 int main(int argc, char** argv) {
+#ifdef __SWITCH__
+    // Network sockets, controllers, and a log on the SD card (a console has no terminal to read).
+    abx::makeHome();
+    socketInitializeDefault();
+    // Give the socket transfer memory back at exit; otherwise hbl faults clearing the heap on return to the menu.
+    std::atexit(socketExit);
+    // Started with nxlink (nxlink -s atomic.nro): the log goes to the computer's terminal as it is written.
+    if (nxlinkStdio() < 0) std::freopen("/switch/atomic-bomberman/log.txt", "w", stderr);
+#endif
     for (;;) {
         bool again = false;
         const int result = runGame(argc, argv, again);

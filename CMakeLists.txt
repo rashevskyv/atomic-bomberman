@@ -1,10 +1,17 @@
 cmake_minimum_required(VERSION 3.20)
 # The release number: shown on the main menu and by --version. Releases are tagged v<this>.
-project(AtomicBombermanModern VERSION 1.0 LANGUAGES CXX)
+project(AtomicBombermanModern VERSION 1.0.1 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
+
+# Nintendo Switch (devkitA64, newlib): strict -std=c++20 hides POSIX functions such as strnlen.
+# (Not _GNU_SOURCE: that makes newlib turn the word "quad" into "quad_t" everywhere.)
+if(NINTENDO_SWITCH OR CMAKE_SYSTEM_NAME STREQUAL "NintendoSwitch")
+    set(AB_SWITCH ON)
+    add_compile_definitions(_POSIX_C_SOURCE=200809L __SWITCH__)
+endif()
 
 # Windows release builds link the C++ runtime statically so the .exe runs without a redistributable.
 set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
@@ -42,7 +49,7 @@ add_library(ab_free src/free/free_art.cpp src/free/free_sound.cpp src/free/free_
 target_link_libraries(ab_free PUBLIC ab_game ab_resources)
 ab_warnings(ab_free)
 
-if(NOT ANDROID)
+if(NOT ANDROID AND NOT AB_SWITCH)
     add_executable(free_art_dump tools/diagnostics/free_art_dump.cpp)
     target_link_libraries(free_art_dump PRIVATE ab_free)
     ab_warnings(free_art_dump)
@@ -59,7 +66,7 @@ endif()
 ab_warnings(ab_net)
 
 # Dedicated server: no window, no SDL. (Not for Android: the app is the game alone.)
-if(NOT ANDROID)
+if(NOT ANDROID AND NOT AB_SWITCH)
     add_executable(atomic_server src/server/main.cpp)
     target_link_libraries(atomic_server PRIVATE ab_net ab_free Threads::Threads)
     target_compile_definitions(atomic_server PRIVATE AB_VERSION="${PROJECT_VERSION}")
@@ -94,6 +101,11 @@ if(AB_ONLINE)
     # Written out step by step (rather than FetchContent_MakeAvailable) for the CMake 3.22
     # that Android's build tools bring: only what the game links is built, and Monocypher's
     # own build files are not used (two C files, compiled below).
+    if(AB_SWITCH)
+        # (the same file for the library and for the code that includes its headers, below)
+        set(AB_MBEDTLS_USER_CONFIG "${CMAKE_CURRENT_SOURCE_DIR}/src/online/switch_mbedtls.h")
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DMBEDTLS_USER_CONFIG_FILE=\\\"${AB_MBEDTLS_USER_CONFIG}\\\"")
+    endif()
     FetchContent_GetProperties(mbedtls)
     if(NOT mbedtls_POPULATED)
         FetchContent_Populate(mbedtls)
@@ -118,10 +130,20 @@ if(AB_ONLINE)
         add_subdirectory(${libjuice_SOURCE_DIR} ${libjuice_BINARY_DIR} EXCLUDE_FROM_ALL)
     endif()
     target_compile_definitions(juice-static PUBLIC JUICE_STATIC)
+    if(AB_SWITCH)
+        # The Switch has no <ifaddrs.h>: ours (src/platform/switch/ifaddrs) tells libjuice the console's address.
+        target_include_directories(juice-static PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src/platform/switch/ifaddrs)
+        target_sources(juice-static PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src/platform/switch/ifaddrs/switch_ifaddrs.c)
+    endif()
     add_library(ab_monocypher STATIC ${monocypher_SOURCE_DIR}/src/monocypher.c ${monocypher_SOURCE_DIR}/src/optional/monocypher-ed25519.c)
     target_include_directories(ab_monocypher PUBLIC ${monocypher_SOURCE_DIR}/src ${monocypher_SOURCE_DIR}/src/optional)
     add_library(ab_online src/online/json.cpp src/online/sign.cpp src/online/http.cpp src/online/config.cpp src/online/online.cpp src/online/certificate.cpp src/online/tournament.cpp src/online/ice.cpp src/online/turn_stream.cpp)
     target_include_directories(ab_online PUBLIC src)
+    if(AB_SWITCH)
+        # (switch_entropy.c is built into the program itself, below: in this library it would come
+        # before mbedTLS on the linker's line, and nothing would ask for it yet.)
+        target_compile_definitions(ab_online PUBLIC MBEDTLS_USER_CONFIG_FILE="${AB_MBEDTLS_USER_CONFIG}")
+    endif()
     target_link_libraries(ab_online PUBLIC ab_monocypher MbedTLS::mbedtls Threads::Threads)
     target_link_libraries(ab_online PRIVATE juice-static)
     if(WIN32)
@@ -152,7 +174,13 @@ endif()
 # downloaded and built as a static library instead (used by the release builds).
 option(AB_FETCH_SDL3 "Download and build SDL3 if it is not installed" OFF)
 option(AB_MACOS_APP "macOS: build the game as an application bundle (.app) instead of a plain program" OFF)
-find_package(SDL3 CONFIG QUIET)
+if(AB_SWITCH)
+    # The Switch has SDL2 (switch-sdl2), not SDL3: src/platform/switch/ stands in for the SDL3 headers.
+    set(AB_DKP_PORTLIBS $ENV{DEVKITPRO}/portlibs/switch)
+    set(SDL3_FOUND TRUE)
+else()
+    find_package(SDL3 CONFIG QUIET)
+endif()
 if(NOT SDL3_FOUND AND AB_FETCH_SDL3)
     include(FetchContent)
     if(ANDROID)
@@ -180,6 +208,7 @@ if(SDL3_FOUND)
         src/app/pad_keys.cpp
         src/app/screen_keyboard.cpp
         src/app/import_screen.cpp
+        src/app/mods.cpp
         src/app/original_folder.cpp
         src/rendering/gl.cpp
         src/rendering/renderer.cpp
@@ -216,19 +245,39 @@ if(SDL3_FOUND)
     else()
         add_executable(atomic ${AB_APP_SOURCES})
         set(AB_APP atomic)
-        install(TARGETS atomic RUNTIME DESTINATION .)
+        if(NOT AB_SWITCH)
+            install(TARGETS atomic RUNTIME DESTINATION .)
+        endif()
     endif()
-    target_link_libraries(${AB_APP} PRIVATE ab_game ab_resources ab_net ab_free SDL3::SDL3)
+    if(AB_SWITCH)
+        target_include_directories(${AB_APP} BEFORE PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src/platform/switch)
+        # (only SDL2's own folder: devkitPro's mbedTLS 2 headers sit in portlibs/include and must not hide the fetched 3.6)
+        target_include_directories(${AB_APP} SYSTEM PRIVATE ${AB_DKP_PORTLIBS}/include/SDL2)
+        target_link_directories(${AB_APP} PRIVATE ${AB_DKP_PORTLIBS}/lib)
+        if(AB_ONLINE)
+            enable_language(C)
+            target_sources(${AB_APP} PRIVATE src/online/switch_entropy.c)
+        endif()
+        target_link_libraries(${AB_APP} PRIVATE ab_game ab_resources ab_net ab_free
+            SDL2 EGL glapi drm_nouveau nx m)
+    else()
+        target_link_libraries(${AB_APP} PRIVATE ab_game ab_resources ab_net ab_free SDL3::SDL3)
+    endif()
     if(AB_ONLINE)
         target_link_libraries(${AB_APP} PRIVATE ab_online)
     endif()
     target_compile_definitions(${AB_APP} PRIVATE AB_VERSION="${PROJECT_VERSION}")
     ab_warnings(${AB_APP})
+    if(AB_SWITCH)
+        # atomic.nro for /switch/ on the SD card.
+        nx_generate_nacp(OUTPUT atomic.nacp NAME "Atomic Bomberman" AUTHOR "Atomic Bomberman Modern" VERSION "${PROJECT_VERSION}")
+        nx_create_nro(${AB_APP} NACP atomic.nacp)
+    endif()
 else()
     message(STATUS "SDL3 not found: building the core and tests only (use -DAB_FETCH_SDL3=ON to download it)")
 endif()
 
-if(NOT ANDROID)
+if(NOT ANDROID AND NOT AB_SWITCH)
 enable_testing()
 # Developer tool for the movie decoder (not installed).
 add_executable(mve_dump tools/diagnostics/mve_dump.cpp)
