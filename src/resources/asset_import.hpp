@@ -57,7 +57,8 @@ ImportReport importAssets(const std::string& source, const std::string& destinat
 // sounds the game never plays were asked for too (so that a later release converts the same).
 std::string importStamp(const std::string& converted);  // empty: none (or not made this way)
 bool importStampAllSounds(const std::string& converted);
-bool writeImportStamp(const std::string& converted, const std::string& release, bool allSounds);
+// `complete` false while a conversion is under way: such a folder is not used, and a later start goes on from it.
+bool writeImportStamp(const std::string& converted, const std::string& release, bool allSounds, bool complete = true);
 // True if `converted` has to be (re)made for `release`.
 bool importIsDue(const std::string& converted, const std::string& release);
 // Converts `source` into `converted` for `release`. The work is done in a folder beside it

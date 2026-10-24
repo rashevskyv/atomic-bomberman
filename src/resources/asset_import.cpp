@@ -244,6 +244,13 @@ ImportReport importAssets(const std::string& source, const std::string& destinat
 
     for (const Copy& c : copies) {
         if (!tell(c.to.filename().string(), false)) return report;
+        // Done by an earlier, interrupted run: the same size is the same file (a cut-short copy is not).
+        std::error_code eTo, eFrom;
+        const bool there = fs::exists(c.to, eTo) && !eTo;
+        if (there && fs::file_size(c.to, eTo) == fs::file_size(c.from, eFrom) && !eTo && !eFrom) {
+            ++report.dataFiles;
+            continue;
+        }
         if (!withRetries(c.to, [&](std::error_code& why) { return copyFile(c.from, c.to, report, why); })) ++report.failed;
     }
 
@@ -270,7 +277,10 @@ ImportReport importAssets(const std::string& source, const std::string& destinat
         if (!tell(snd.name + ".wav", true)) return report;
         const int before = report.sounds;
         const fs::path wav = dst / "data" / "sound" / (snd.name + ".wav");
-        const bool ok = !snd.rss.empty() && withRetries(wav, [&](std::error_code&) { return convertRssToWav(snd.rss, wav, report); });
+        std::error_code wavErr;
+        const bool made = fs::exists(wav, wavErr) && fs::file_size(wav, wavErr) > 0 && !wavErr;  // an earlier run made it
+        const bool ok = made || (!snd.rss.empty() && withRetries(wav, [&](std::error_code&) { return convertRssToWav(snd.rss, wav, report); }));
+        if (made && !snd.rss.empty()) ++report.sounds;
         if (snd.extra) {
             report.sounds = before;  // counted apart
             report.extraSounds += ok ? 1 : 0;
@@ -298,29 +308,49 @@ ImportReport importAssets(const std::string& source, const std::string& destinat
 
 namespace {
 const char* const kStampFile = "converted-by.txt";
+
+// What the stamp of a converted folder says: its release, whether the sounds the game never
+// plays were asked for, and whether the conversion was finished (a stamp written at the start
+// of a conversion says it is not yet, so that an interrupted one can go on).
+struct Stamp {
+    std::string release;
+    bool allSounds = false;
+    bool complete = false;
+};
+
+Stamp readStamp(const fs::path& dir) {
+    Stamp s;
+    std::ifstream in(dir / kStampFile);
+    std::string line;
+    bool first = true;
+    while (std::getline(in, line)) {
+        while (!line.empty() && std::isspace(static_cast<unsigned char>(line.back())) != 0) line.pop_back();
+        if (first) {
+            s.release = line;
+            first = false;
+        } else if (line == "all-sounds") {
+            s.allSounds = true;
+        } else if (line == "complete") {
+            s.complete = true;
+        }
+    }
+    return s;
 }
+}  // namespace
 
 std::string importStamp(const std::string& converted) {
-    std::ifstream in(fs::path(converted) / kStampFile);
-    std::string release;
-    std::getline(in, release);
-    while (!release.empty() && std::isspace(static_cast<unsigned char>(release.back())) != 0) release.pop_back();
-    return release;
+    return readStamp(converted).release;
 }
 
 bool importStampAllSounds(const std::string& converted) {
-    std::ifstream in(fs::path(converted) / kStampFile);
-    std::string line;
-    std::getline(in, line);
-    while (std::getline(in, line))
-        if (line.rfind("all-sounds", 0) == 0) return true;
-    return false;
+    return readStamp(converted).allSounds;
 }
 
-bool writeImportStamp(const std::string& converted, const std::string& release, bool allSounds) {
+bool writeImportStamp(const std::string& converted, const std::string& release, bool allSounds, bool complete) {
     std::ofstream stamp(fs::path(converted) / kStampFile);
     stamp << release << "\n";
     if (allSounds) stamp << "all-sounds\n";
+    if (complete) stamp << "complete\n";
     stamp.flush();
     return static_cast<bool>(stamp);
 }
@@ -335,22 +365,49 @@ ImportReport importForRelease(const std::string& source, const std::string& conv
     fs::path work = target;
     work += ".new";
     std::error_code ec;
-    fs::remove_all(work, ec);  // what an interrupted conversion left behind
-    ImportReport report = importAssets(source, work.string(), allSounds, progress);
-    if (report.ok && !writeImportStamp(work.string(), release, allSounds)) {
-        report.ok = false;
-        report.error = "cannot write into " + work.string();
-    }
-    if (report.ok) {
-        fs::remove_all(target, ec);
+    // The work folder is kept when a conversion stops or fails, so that the next start goes on from
+    // the files it has. It is started anew only when it was made for another release or other sounds.
+    const Stamp left = readStamp(work);
+    const bool sameConversion = left.release == release && left.allSounds == allSounds;
+    ImportReport report;
+    report.ok = true;
+    if (!(sameConversion && left.complete)) {
+        if (!sameConversion) fs::remove_all(work, ec);
         ec.clear();
-        fs::rename(work, target, ec);
-        if (ec) {
+        fs::create_directories(work, ec);
+        if (!writeImportStamp(work.string(), release, allSounds, false)) {
             report.ok = false;
-            report.error = "cannot put the converted files in place: " + ec.message();
+            report.error = "cannot write into " + work.string();
+            return report;
+        }
+        report = importAssets(source, work.string(), allSounds, progress);
+        if (!report.ok) return report;
+        if (!writeImportStamp(work.string(), release, allSounds, true)) {
+            report.ok = false;
+            report.error = "cannot write into " + work.string();
+            return report;
         }
     }
-    if (!report.ok) fs::remove_all(work, ec);
+    // Put the finished folder in place. The old one goes out of the way first; what the
+    // file system does not let go of is moved aside instead (the Switch reported "File exists").
+    fs::remove_all(target, ec);
+    ec.clear();
+    if (fs::exists(target, ec)) {
+        fs::path old = target;
+        old += ".old";
+        fs::remove_all(old, ec);
+        ec.clear();
+        fs::rename(target, old, ec);
+        ec.clear();
+    }
+    fs::rename(work, target, ec);
+    if (ec) {
+        // The finished folder stays in the work place: the next start puts it in place.
+        report.ok = false;
+        report.error = "cannot put the converted files in place: " + ec.message();
+        return report;
+    }
+    fs::remove_all(target.string() + ".old", ec);
     return report;
 }
 

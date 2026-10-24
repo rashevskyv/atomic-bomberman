@@ -2325,7 +2325,9 @@ void testAssetImport() {
     put(fs::path(conv) / "kept.txt", "from before");
     r = importForRelease(cd.string(), conv, "1.1", [](const ImportProgress& p) { return p.done < 2; });
     CHECK(!r.ok && r.cancelled);
-    CHECK(importStamp(conv) == "1.0" && fs::exists(conv + "/kept.txt") && !fs::exists(conv + ".new"));
+    CHECK(importStamp(conv) == "1.0" && fs::exists(conv + "/kept.txt"));
+    // ...its work folder is kept, unfinished, so the next start goes on from the files it has...
+    CHECK(fs::exists(conv + ".new") && importStamp(conv + ".new") == "1.1" && importStamp(conv) == "1.0");
     // ...and one that goes through replaces it whole.
     r = importForRelease(cd.string(), conv, "1.1");
     CHECK(r.ok && importStamp(conv) == "1.1" && !fs::exists(conv + "/kept.txt") && !fs::exists(conv + ".new"));
