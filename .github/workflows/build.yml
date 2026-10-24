@@ -131,7 +131,7 @@ jobs:
           # every way is a relayed one.
           bot() {
             local log=$1; shift
-            timeout 200 docker run --rm --network bridge -e XDG_DATA_HOME=/tmp --entrypoint net_bot ghcr.io/elraro/atomic-bomberman-server:latest \
+            timeout 200 docker run --rm --network bridge -e XDG_DATA_HOME=/tmp --entrypoint net_bot ghcr.io/${{ github.repository_owner }}/atomic-bomberman-server:latest \
               "listed:Container game" "$@" --start-after 2000 --matches 1 \
               --online-config "https://$IP:8443/config.json" --online-key "$KEY" >"$log" 2>&1 || { tail -n 30 "$log"; failed "$log: no match played ($(grep 'ice:' "$log" | tail -n 1))"; }
             grep -q "done: matches=1" "$log" || { tail -n 30 "$log"; failed "$log: the match was not played to its end"; }
@@ -154,8 +154,8 @@ jobs:
         run: |
           echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
           for image in master server; do
-            docker tag ghcr.io/elraro/atomic-bomberman-$image:latest ghcr.io/elraro/atomic-bomberman-$image:${{ github.sha }}-${{ matrix.arch }}
-            docker push ghcr.io/elraro/atomic-bomberman-$image:${{ github.sha }}-${{ matrix.arch }}
+            docker tag ghcr.io/${{ github.repository_owner }}/atomic-bomberman-$image:latest ghcr.io/${{ github.repository_owner }}/atomic-bomberman-$image:${{ github.sha }}-${{ matrix.arch }}
+            docker push ghcr.io/${{ github.repository_owner }}/atomic-bomberman-$image:${{ github.sha }}-${{ matrix.arch }}
           done
 
   # One name for both processor types: "latest" for the main branch, the tag's name for a release.
@@ -173,7 +173,7 @@ jobs:
           TAG=latest
           [ "${{ github.ref_type }}" = tag ] && TAG="${{ github.ref_name }}"
           for image in master server; do
-            NAME=ghcr.io/elraro/atomic-bomberman-$image
+            NAME=ghcr.io/${{ github.repository_owner }}/atomic-bomberman-$image
             docker buildx imagetools create -t "$NAME:$TAG" "$NAME:${{ github.sha }}-amd64" "$NAME:${{ github.sha }}-arm64"
             docker buildx imagetools inspect "$NAME:$TAG"
           done
