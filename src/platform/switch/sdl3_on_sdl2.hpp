@@ -356,6 +356,8 @@ inline void pollControllers() {
             queue().push_back(e);
         }
     }
+}
+
 }  // namespace abx
 
 struct SDL_Gamepad {
