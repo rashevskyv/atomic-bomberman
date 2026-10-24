@@ -81,7 +81,10 @@ jobs:
           cmake --build build-switch -j"$(nproc)" -- -k 2>&1 | tee build.log
           status=${PIPESTATUS[0]}
           echo "=== ERRORS ==="
-          grep -E "error:|undefined reference|cannot find" build.log | sed 's|/__w/atomic-bomberman/atomic-bomberman/||' | sort -u | head -80
+          # The project's own errors first (a mistake in a header can bring hundreds of lines from the C++ library after it).
+          grep -E "error:|undefined reference|cannot find" build.log | sed 's|/__w/atomic-bomberman/atomic-bomberman/||' | grep -v '^/opt/' | sort -u | head -40
+          echo "=== FIRST ERROR WITH ITS CONTEXT ==="
+          grep -n -m1 -B6 "error:" build.log | sed 's|/__w/atomic-bomberman/atomic-bomberman/||'
           [ "$status" = 0 ] || exit 1
           find build-switch -name '*.nro' -o -name '*.nacp' | xargs ls -la
           # The zip is unpacked onto the root of the SD card: Homebrew Menu then lists the game as a folder.
