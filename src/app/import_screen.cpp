@@ -265,11 +265,23 @@ public:
         } shared;
         std::atomic<bool> stop{false}, finished{false};
         std::thread worker([&]() {
-            ImportReport r = importForRelease(source, setup_.converted, setup_.release, [&](const ImportProgress& p) {
-                const std::lock_guard<std::mutex> guard(shared.lock);
-                shared.progress = p;
-                return !stop.load();
-            }, allSounds);
+            ImportReport r;
+            try {
+                r = importForRelease(source, setup_.converted, setup_.release, [&](const ImportProgress& p) {
+                    const std::lock_guard<std::mutex> guard(shared.lock);
+                    shared.progress = p;
+                    return !stop.load();
+                }, allSounds);
+            } catch (const std::exception& e) {
+                // (An exception that leaves a thread ends the whole program, with nothing on the screen.)
+                std::fprintf(stderr, "ERROR import: %s\n", e.what());
+                r = ImportReport{};
+                r.error = std::string("the conversion failed: ") + e.what();
+            } catch (...) {
+                std::fprintf(stderr, "ERROR import: unknown exception\n");
+                r = ImportReport{};
+                r.error = "the conversion failed for an unknown reason";
+            }
             {
                 const std::lock_guard<std::mutex> guard(shared.lock);
                 shared.report = std::move(r);

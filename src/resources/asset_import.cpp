@@ -230,9 +230,18 @@ ImportReport importAssets(const std::string& source, const std::string& destinat
     state.total = static_cast<int>(copies.size() + sounds.size()) + 1;
     state.dataFiles = static_cast<int>(copies.size()) + 1;
     // False: the caller wants the work stopped.
+    const auto startedAt = std::chrono::steady_clock::now();
+    bool loggedSounds = false;
     auto tell = [&](const std::string& item, bool isSound) {
         state.item = item;
         state.sounds = isSound;
+        // A line in the log every 100 files (a console has no other way to tell how far it got).
+        if (state.done % 100 == 0 || (isSound && !loggedSounds)) {
+            loggedSounds = loggedSounds || isSound;
+            const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - startedAt).count();
+            std::fprintf(stderr, "INFO  import: %s %d of %d (%s) after %lld ms\n", isSound ? "sounds" : "data", state.done, state.total, item.c_str(),
+                         static_cast<long long>(ms));
+        }
         if (progress && !progress(state)) {
             report.cancelled = true;
             report.error = "stopped before the end";
@@ -369,6 +378,8 @@ ImportReport importForRelease(const std::string& source, const std::string& conv
     // the files it has. It is started anew only when it was made for another release or other sounds.
     const Stamp left = readStamp(work);
     const bool sameConversion = left.release == release && left.allSounds == allSounds;
+    std::fprintf(stderr, "INFO  import: release %s from %s into %s (%s)\n", release.c_str(), source.c_str(), work.string().c_str(),
+                 !sameConversion ? "from the start" : left.complete ? "already converted" : "going on from the files there");
     ImportReport report;
     report.ok = true;
     if (!(sameConversion && left.complete)) {
@@ -390,9 +401,12 @@ ImportReport importForRelease(const std::string& source, const std::string& conv
     }
     // Put the finished folder in place. The old one goes out of the way first; what the
     // file system does not let go of is moved aside instead (the Switch reported "File exists").
+    std::fprintf(stderr, "INFO  import: converted, putting %s in place of %s\n", work.string().c_str(), target.string().c_str());
     fs::remove_all(target, ec);
+    if (ec) std::fprintf(stderr, "WARN  import: removing the old folder: %s (%d)\n", ec.message().c_str(), ec.value());
     ec.clear();
     if (fs::exists(target, ec)) {
+        std::fprintf(stderr, "WARN  import: the old folder is still there, moving it aside\n");
         fs::path old = target;
         old += ".old";
         fs::remove_all(old, ec);
@@ -405,8 +419,10 @@ ImportReport importForRelease(const std::string& source, const std::string& conv
         // The finished folder stays in the work place: the next start puts it in place.
         report.ok = false;
         report.error = "cannot put the converted files in place: " + ec.message();
+        std::fprintf(stderr, "ERROR import: rename failed: %s (%d)\n", ec.message().c_str(), ec.value());
         return report;
     }
+    std::fprintf(stderr, "INFO  import: done\n");
     fs::remove_all(target.string() + ".old", ec);
     return report;
 }

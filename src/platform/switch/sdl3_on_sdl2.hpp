@@ -492,6 +492,19 @@ inline SDL_Window* SDL_CreateWindow(const char* title, int w, int h, Uint32 flag
     return ::SDL_CreateWindow(title, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, w, h, flags);
 }
 inline void SDL_GL_DestroyContext(SDL_GLContext c) { ::SDL_GL_DeleteContext(c); }
+// A long conversion must not be cut short by the console going to sleep or dimming its screen.
+inline void ab_sdl_disable_screensaver() {
+    appletSetMediaPlaybackState(true);
+    appletSetAutoSleepDisabled(true);
+    appletSetAutoSleepTimeAndDimmingTimeEnabled(false);
+}
+inline void ab_sdl_enable_screensaver() {
+    appletSetAutoSleepTimeAndDimmingTimeEnabled(true);
+    appletSetAutoSleepDisabled(false);
+    appletSetMediaPlaybackState(false);
+}
+#define SDL_DisableScreenSaver ab_sdl_disable_screensaver
+#define SDL_EnableScreenSaver ab_sdl_enable_screensaver
 inline void SDL_StartTextInput(SDL_Window*) {}
 inline void SDL_StopTextInput(SDL_Window*) {}
 
