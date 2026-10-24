@@ -382,7 +382,23 @@ std::string findGameDir(const std::string& requested) {
 }
 
 // How each player slot is controlled, as on the original's player list.
-enum class Control { Off, Key0, Key1, Ai, Pad0, Pad1, Pad2, Pad3 };
+enum class Control { Off, Key0, Key1, Ai, Pad0, Pad1, Pad2, Pad3, Pad4, Pad5, Pad6, Pad7 };
+constexpr int kMaxPads = 8;  // gamepads that can be players at once
+
+#ifdef __SWITCH__
+constexpr bool kKeyboardPlayers = false;  // a console is played with its controllers
+// The screens' hints name the keyboard's keys; on the console the same things are done with buttons.
+std::string padText(std::string s) {
+    static const std::pair<const char*, const char*> kNames[] = {{"Enter:", "A:"}, {"Esc:", "B:"}};
+    for (const auto& name : kNames)
+        for (std::size_t at = 0; (at = s.find(name.first, at)) != std::string::npos; at += std::string(name.second).size())
+            s.replace(at, std::string(name.first).size(), name.second);
+    return s;
+}
+#else
+constexpr bool kKeyboardPlayers = true;
+std::string padText(std::string s) { return s; }
+#endif
 
 const char* controlName(Control c) {
     switch (c) {
@@ -393,6 +409,10 @@ const char* controlName(Control c) {
         case Control::Pad1: return "JOY 1";
         case Control::Pad2: return "JOY 2";
         case Control::Pad3: return "JOY 3";
+        case Control::Pad4: return "JOY 4";
+        case Control::Pad5: return "JOY 5";
+        case Control::Pad6: return "JOY 6";
+        case Control::Pad7: return "JOY 7";
         default: return "OFF";
     }
 }
@@ -670,11 +690,11 @@ int runGame(int argc, char** argv, bool& again) {
         ab::Audio audio;
         const bool sound = !opt.gameDir.empty() && !opt.mute && audio.init(opt.gameDir, cfg.smallMemory, cfg.unusedVoices);
         audio.setVolumes(cfg.musicVolume, cfg.soundVolume);
-        // Up to four gamepads, opened once at start.
-        std::array<SDL_Gamepad*, 4> pads{};
+        // Up to eight gamepads, opened once at start.
+        std::array<SDL_Gamepad*, kMaxPads> pads{};
         int padCount = 0;
         if (SDL_JoystickID* ids = SDL_GetGamepads(&padCount)) {
-            padCount = std::min(padCount, 4);
+            padCount = std::min(padCount, kMaxPads);
             for (int i = 0; i < padCount; ++i) pads[static_cast<std::size_t>(i)] = SDL_OpenGamepad(ids[i]);
             SDL_free(ids);
         } else {
@@ -703,7 +723,7 @@ int runGame(int argc, char** argv, bool& again) {
             // there is one; otherwise the first such seat takes the keyboard (option
             // "Assign Keyboard Player"), and seat 2 becomes a computer player.
             control = {};
-            bool keyboardGiven = !cfg.assignKeyboards;
+            bool keyboardGiven = !cfg.assignKeyboards || !kKeyboardPlayers;
             for (int i = 0; i < ab::kMaxPlayers; ++i) {
                 if (i < padCount) control[static_cast<std::size_t>(i)] = static_cast<Control>(static_cast<int>(Control::Pad0) + i);
                 else if (!keyboardGiven) control[static_cast<std::size_t>(i)] = Control::Key0, keyboardGiven = true;
@@ -1223,6 +1243,13 @@ int runGame(int argc, char** argv, bool& again) {
                     touch.handle(e, ww, wh);
                 }
                 if (e.type == SDL_EVENT_GAMEPAD_BUTTON_DOWN || e.type == SDL_EVENT_GAMEPAD_BUTTON_UP) {
+#ifdef __SWITCH__
+                    if (e.gbutton.button == SDL_GAMEPAD_BUTTON_BACK) {
+                        // The system's controller screen (pair or split Joy-Con, assign players), from the player list.
+                        if (e.type == SDL_EVENT_GAMEPAD_BUTTON_DOWN && screen == Screen::PlayerList) abx::openControllerApplet();
+                        continue;
+                    }
+#endif
                     if (const ab::PadKeys::Button b = padButton(e.gbutton.button); b != ab::PadKeys::Button::Count)
                         padKeys.button(b, e.type == SDL_EVENT_GAMEPAD_BUTTON_DOWN, SDL_GetTicks());
                     pushPadKeys();
@@ -1245,7 +1272,7 @@ int runGame(int argc, char** argv, bool& again) {
                             pads[i] = SDL_OpenGamepad(e.gdevice.which);
                             known = true;
                         }
-                    for (padCount = 4; padCount > 0 && pads[static_cast<std::size_t>(padCount - 1)] == nullptr;) --padCount;
+                    for (padCount = kMaxPads; padCount > 0 && pads[static_cast<std::size_t>(padCount - 1)] == nullptr;) --padCount;
                     continue;
                 }
                 if (e.type == SDL_EVENT_GAMEPAD_REMOVED) {
@@ -1255,7 +1282,7 @@ int runGame(int argc, char** argv, bool& again) {
                             pads[i] = nullptr;
                             padKeys.stick(static_cast<int>(i), 0, 0, SDL_GetTicks());
                         }
-                    for (padCount = 4; padCount > 0 && pads[static_cast<std::size_t>(padCount - 1)] == nullptr;) --padCount;
+                    for (padCount = kMaxPads; padCount > 0 && pads[static_cast<std::size_t>(padCount - 1)] == nullptr;) --padCount;
                     continue;
                 }
                 // A phone's back key is Esc.
@@ -1355,9 +1382,10 @@ int runGame(int argc, char** argv, bool& again) {
                     {
                         // then any connected gamepads before OFF
                         const int k = static_cast<int>(c);
-                        if (c == Control::Ai) c = Control::Key0;
+                        const Control firstPad = padCount > 0 ? Control::Pad0 : Control::Off;
+                        if (c == Control::Ai) c = kKeyboardPlayers ? Control::Key0 : firstPad;
                         else if (c == Control::Key0) c = Control::Key1;
-                        else if (c == Control::Key1) c = padCount > 0 ? Control::Pad0 : Control::Off;
+                        else if (c == Control::Key1) c = firstPad;
                         else if (k >= static_cast<int>(Control::Pad0))
                             c = k - static_cast<int>(Control::Pad0) + 1 < padCount ? static_cast<Control>(k + 1) : Control::Off;
                         else c = Control::Ai;
@@ -2024,7 +2052,7 @@ int runGame(int argc, char** argv, bool& again) {
                     renderer.text(*spritesPtr, campaignFiles[r], 80, 92.0f + 22.0f * static_cast<float>(r), on ? 1.0f : 0.85f, on ? 0.95f : 0.85f, on ? 0.3f : 0.85f);
                 }
                 renderer.sprite(*spritesPtr, "cursor1", frame / 8, -1, 62.0f, 107.0f + 22.0f * static_cast<float>(campaignRow));
-                renderer.text(*spritesPtr, "Up/Down: select   Enter: play   Esc: back", 60, 440, 0.4f, 1.0f, 1.0f);
+                renderer.text(*spritesPtr, padText("Up/Down: select   Enter: play   Esc: back"), 60, 440, 0.4f, 1.0f, 1.0f);
                 renderer.end();
             } else if (screen == Screen::Help) {
                 renderer.begin(w, h);
@@ -2058,7 +2086,7 @@ int runGame(int argc, char** argv, bool& again) {
                         x += static_cast<float>(pw);
                     }
                 }
-                renderer.text(*spritesPtr, "Up/Down: line   PgUp/PgDn: page   Esc: done", 60, 440, 0.4f, 1.0f, 1.0f);
+                renderer.text(*spritesPtr, padText("Up/Down: line   PgUp/PgDn: page   Esc: done"), 60, 440, 0.4f, 1.0f, 1.0f);
                 renderer.end();
             } else if (screen == Screen::HelpList) {
                 renderer.begin(w, h);
@@ -2070,7 +2098,7 @@ int runGame(int argc, char** argv, bool& again) {
                     renderer.text(*spritesPtr, helpFiles[r], 80, 92.0f + 22.0f * static_cast<float>(r), on ? 1.0f : 0.85f, on ? 0.95f : 0.85f, on ? 0.3f : 0.85f);
                 }
                 renderer.sprite(*spritesPtr, "cursor1", frame / 8, -1, 62.0f, 107.0f + 22.0f * static_cast<float>(helpRow));
-                renderer.text(*spritesPtr, "Up/Down: select   Enter: read   Esc: back", 60, 440, 0.4f, 1.0f, 1.0f);
+                renderer.text(*spritesPtr, padText("Up/Down: select   Enter: read   Esc: back"), 60, 440, 0.4f, 1.0f, 1.0f);
                 renderer.end();
             } else if (screen == Screen::Editor) {
                 renderer.begin(w, h);
@@ -2107,7 +2135,7 @@ int runGame(int argc, char** argv, bool& again) {
                 }
                 if (unused == 0 && !soundList.empty() && !ab::isFreeAssetDir(opt.gameDir))
                     renderer.text(*spritesPtr, "For the disc's other sounds: atomic --import-assets PATH --all-sounds", 45, 398, 0.7f, 0.7f, 0.7f);
-                renderer.text(*spritesPtr, "Up/Down: choose   Enter: play   Tab: show   Esc: done", 60, 440, 0.4f, 1.0f, 1.0f);
+                renderer.text(*spritesPtr, padText("Up/Down: choose   Enter: play   Tab: show   Esc: done"), 60, 440, 0.4f, 1.0f, 1.0f);
                 renderer.end();
             } else if (screen == Screen::AudioAdjust) {
                 renderer.begin(w, h);
@@ -2129,7 +2157,7 @@ int runGame(int argc, char** argv, bool& again) {
                     renderer.text(*spritesPtr, rows[r], 80, 100.0f + 24.0f * static_cast<float>(r), on ? 1.0f : 0.85f, on ? 0.95f : 0.85f, on ? 0.3f : 0.85f);
                 }
                 renderer.sprite(*spritesPtr, "cursor1", frame / 8, -1, 62.0f, 115.0f + 24.0f * static_cast<float>(audioRow));
-                renderer.text(*spritesPtr, "Up/Down: select   Left/Right: change   Esc: done", 60, 462, 0.4f, 1.0f, 1.0f);
+                renderer.text(*spritesPtr, padText("Up/Down: select   Left/Right: change   Esc: done"), 60, 462, 0.4f, 1.0f, 1.0f);
                 renderer.end();
             } else if (screen == Screen::Keys) {
                 static const char* const kAction[6] = {"Move Up", "Move Right", "Move Down", "Move Left", "Action 1", "Action 2"};  // 1120-1125
@@ -2154,7 +2182,7 @@ int runGame(int argc, char** argv, bool& again) {
                     renderer.quad(140, 200, 360, 50, 0.1f, 0.1f, 0.3f, 0.95f);
                     renderer.text(*spritesPtr, ask, 320.0f - renderer.textWidth(*spritesPtr, ask) / 2.0f, 216, 1.0f, 0.95f, 0.3f);
                 }
-                renderer.text(*spritesPtr, "Up/Down: select   Enter: change   Esc: done", 60, 440, 0.4f, 1.0f, 1.0f);
+                renderer.text(*spritesPtr, padText("Up/Down: select   Enter: change   Esc: done"), 60, 440, 0.4f, 1.0f, 1.0f);
                 renderer.end();
             } else if (screen == Screen::Options) {
                 // Messages 250-263 with the original's value texts; rows from (55,40) every 22 px (value 745).
@@ -2191,7 +2219,7 @@ int runGame(int argc, char** argv, bool& again) {
                     renderer.text(*spritesPtr, rows[r], 55, y, r == optionRow ? 1.0f : 0.85f, r == optionRow ? 0.95f : 0.85f, r == optionRow ? 0.3f : 0.85f);
                 }
                 renderer.sprite(*spritesPtr, "cursor1", frame / 8, -1, 41.0f, 55.0f + 22.0f * static_cast<float>(optionRow));
-                renderer.text(*spritesPtr, "Up/Down: select   Left/Right: change   Esc: done", 60, 440, 0.4f, 1.0f, 1.0f);
+                renderer.text(*spritesPtr, padText("Up/Down: select   Left/Right: change   Esc: done"), 60, 440, 0.4f, 1.0f, 1.0f);
                 renderer.end();
             } else if (screen == Screen::LevelSetup) {
                 const int shownLevel = randomLevel ? -1 : level;
@@ -2242,7 +2270,7 @@ int runGame(int argc, char** argv, bool& again) {
                     renderer.text(*spritesPtr, lines[r], 55, y, 1, 1, 1);
                 }
                 renderer.sprite(*spritesPtr, "cursor1", frame / 8, -1, 41.0f, 185.0f + 24.0f * static_cast<float>(setupRow));
-                renderer.text(*spritesPtr, "Up/Down: select   Left/Right: change   Enter: start", 60, 440, 0.4f, 1.0f, 1.0f);
+                renderer.text(*spritesPtr, padText("Up/Down: select   Left/Right: change   Enter: start"), 60, 440, 0.4f, 1.0f, 1.0f);
                 renderer.end();
             } else if (screen == Screen::MainMenu) {
                 renderer.begin(w, h);
@@ -2279,7 +2307,10 @@ int runGame(int argc, char** argv, bool& again) {
                     renderer.text(*spritesPtr, "Joy " + std::to_string(j) + " - " + (name != nullptr ? name : "?"), 320,
                                   170.0f + 24.0f * static_cast<float>(j), 0.85f, 0.85f, 0.85f);
                 }
-                renderer.text(*spritesPtr, teamPlay ? "Up/Down: select   Left: off   Right: change   T: team   Enter: start" : "Up/Down: select   Left: off   Right: change   Enter: start", 60, 440, 0.4f, 1.0f, 1.0f);
+                renderer.text(*spritesPtr, padText(teamPlay ? "Up/Down: select   Left: off   Right: change   T: team   Enter: start" : "Up/Down: select   Left: off   Right: change   Enter: start"), 60, 440, 0.4f, 1.0f, 1.0f);
+#ifdef __SWITCH__
+                renderer.text(*spritesPtr, "- or +: controllers (pair Joy-Con, change who plays)", 60, 462, 0.4f, 1.0f, 1.0f);
+#endif
                 renderer.end();
             }
 

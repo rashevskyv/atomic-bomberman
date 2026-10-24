@@ -175,6 +175,7 @@ enum SDL_GamepadButton {
     SDL_GAMEPAD_BUTTON_DPAD_DOWN,
     SDL_GAMEPAD_BUTTON_DPAD_LEFT,
     SDL_GAMEPAD_BUTTON_DPAD_RIGHT,
+    SDL_GAMEPAD_BUTTON_BACK,  // − (+ on a Joy-Con (R) on its own): the game opens the controller screen with it
     SDL_GAMEPAD_BUTTON_COUNT
 };
 enum SDL_GamepadAxis { SDL_GAMEPAD_AXIS_LEFTX, SDL_GAMEPAD_AXIS_LEFTY };
@@ -251,11 +252,10 @@ inline Kind kindOf(u32 style, u32 type) {
 // The buttons as the game knows them. A Joy-Con on its own is held sideways, and the mapping is
 // the same one devkitPro's SDL2 uses for it: its four arrow buttons (left one) or four face
 // buttons (right one) are the face buttons, and its stick's four directions are the arrows.
-inline void readButtons(const Slot& s, std::array<bool, SDL_GAMEPAD_BUTTON_COUNT>& out, bool& applet) {
+inline void readButtons(const Slot& s, std::array<bool, SDL_GAMEPAD_BUTTON_COUNT>& out) {
     const u64 b = padGetButtons(&s.pad);
     auto has = [&](u64 mask) { return (b & mask) != 0; };
     const u64 shoulders = HidNpadButton_L | HidNpadButton_R | HidNpadButton_ZL | HidNpadButton_ZR;
-    applet = false;
     if (s.kind == Kind::JoyLeft) {
         out[SDL_GAMEPAD_BUTTON_SOUTH] = has(HidNpadButton_Down);
         out[SDL_GAMEPAD_BUTTON_EAST] = has(HidNpadButton_Left | HidNpadButton_LeftSL);
@@ -266,7 +266,7 @@ inline void readButtons(const Slot& s, std::array<bool, SDL_GAMEPAD_BUTTON_COUNT
         out[SDL_GAMEPAD_BUTTON_DPAD_UP] = has(HidNpadButton_StickLRight);
         out[SDL_GAMEPAD_BUTTON_DPAD_RIGHT] = has(HidNpadButton_StickLDown);
         out[SDL_GAMEPAD_BUTTON_DPAD_DOWN] = has(HidNpadButton_StickLLeft);
-        applet = has(HidNpadButton_Minus);
+        out[SDL_GAMEPAD_BUTTON_BACK] = has(HidNpadButton_Minus);
     } else if (s.kind == Kind::JoyRight) {
         out[SDL_GAMEPAD_BUTTON_SOUTH] = has(HidNpadButton_X);
         out[SDL_GAMEPAD_BUTTON_EAST] = has(HidNpadButton_A | HidNpadButton_RightSL);
@@ -277,7 +277,7 @@ inline void readButtons(const Slot& s, std::array<bool, SDL_GAMEPAD_BUTTON_COUNT
         out[SDL_GAMEPAD_BUTTON_DPAD_UP] = has(HidNpadButton_StickRLeft);
         out[SDL_GAMEPAD_BUTTON_DPAD_RIGHT] = has(HidNpadButton_StickRUp);
         out[SDL_GAMEPAD_BUTTON_DPAD_DOWN] = has(HidNpadButton_StickRRight);
-        applet = has(HidNpadButton_Plus);
+        out[SDL_GAMEPAD_BUTTON_BACK] = has(HidNpadButton_Plus);
     } else {
         out[SDL_GAMEPAD_BUTTON_SOUTH] = has(HidNpadButton_A);
         out[SDL_GAMEPAD_BUTTON_EAST] = has(HidNpadButton_B);
@@ -288,14 +288,13 @@ inline void readButtons(const Slot& s, std::array<bool, SDL_GAMEPAD_BUTTON_COUNT
         out[SDL_GAMEPAD_BUTTON_DPAD_DOWN] = has(HidNpadButton_Down);
         out[SDL_GAMEPAD_BUTTON_DPAD_LEFT] = has(HidNpadButton_Left);
         out[SDL_GAMEPAD_BUTTON_DPAD_RIGHT] = has(HidNpadButton_Right);
-        applet = has(HidNpadButton_Minus);
+        out[SDL_GAMEPAD_BUTTON_BACK] = has(HidNpadButton_Minus);
     }
 }
 
 // Reads every controller and queues what changed since the last time, as SDL3 would report it.
 inline void pollControllers() {
     if (!controllersStarted()) startControllers();
-    bool wantApplet = false;
     for (int i = 0; i < kPads; ++i) {
         Slot& s = slots()[static_cast<std::size_t>(i)];
         padUpdate(&s.pad);
@@ -324,9 +323,7 @@ inline void pollControllers() {
         }
         if (!now) continue;
         std::array<bool, SDL_GAMEPAD_BUTTON_COUNT> held{};
-        bool applet = false;
-        readButtons(s, held, applet);
-        wantApplet = wantApplet || (applet && padGetButtonsDown(&s.pad) != 0);
+        readButtons(s, held);
         if (s.loggedPresses < 40 && padGetButtonsDown(&s.pad) != 0) {  // the first presses, as raw as they come
             ++s.loggedPresses;
             const HidAnalogStickState l = padGetStickPos(&s.pad, 0), r = padGetStickPos(&s.pad, 1);
@@ -359,13 +356,6 @@ inline void pollControllers() {
             queue().push_back(e);
         }
     }
-    if (wantApplet) {
-        std::fprintf(stderr, "PAD   opening the controller screen\n");
-        std::fflush(stderr);
-        openControllerApplet();
-    }
-}
-
 }  // namespace abx
 
 struct SDL_Gamepad {
