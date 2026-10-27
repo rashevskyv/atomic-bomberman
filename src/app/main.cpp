@@ -386,7 +386,7 @@ enum class Control { Off, Key0, Key1, Ai, Pad0, Pad1, Pad2, Pad3, Pad4, Pad5, Pa
 constexpr int kMaxPads = 8;  // gamepads that can be players at once
 
 #ifdef __SWITCH__
-constexpr bool kKeyboardPlayers = false;  // a console is played with its controllers
+constexpr bool kKeyboardPlayers = false;  // a console is played with its controllers: no seat takes the keyboard by itself (it can be chosen)
 // The screens' hints name the keyboard's keys; on the console the same things are done with buttons.
 std::string padText(std::string s) {
     static const std::pair<const char*, const char*> kNames[] = {{"Enter:", "A:"}, {"Esc:", "B:"}};
@@ -405,14 +405,14 @@ const char* controlName(Control c) {
         case Control::Key0: return "KEY 0";
         case Control::Key1: return "KEY 1";
         case Control::Ai: return "AI";
-        case Control::Pad0: return "JOY 0";
-        case Control::Pad1: return "JOY 1";
-        case Control::Pad2: return "JOY 2";
-        case Control::Pad3: return "JOY 3";
-        case Control::Pad4: return "JOY 4";
-        case Control::Pad5: return "JOY 5";
-        case Control::Pad6: return "JOY 6";
-        case Control::Pad7: return "JOY 7";
+        case Control::Pad0: return "JOY 1";
+        case Control::Pad1: return "JOY 2";
+        case Control::Pad2: return "JOY 3";
+        case Control::Pad3: return "JOY 4";
+        case Control::Pad4: return "JOY 5";
+        case Control::Pad5: return "JOY 6";
+        case Control::Pad6: return "JOY 7";
+        case Control::Pad7: return "JOY 8";
         default: return "OFF";
     }
 }
@@ -1377,18 +1377,16 @@ int runGame(int argc, char** argv, bool& again) {
                     Control& c = control[static_cast<std::size_t>(listRow)];
                     if (key == SDLK_UP) listRow = (listRow + ab::kMaxPlayers - 1) % ab::kMaxPlayers;
                     if (key == SDLK_DOWN) listRow = (listRow + 1) % ab::kMaxPlayers;
-                    if (key == SDLK_LEFT) c = Control::Off;
-                    if (key == SDLK_RIGHT)  // AI -> KEY 0 -> KEY 1 -> OFF -> AI, as observed on the original
-                    {
-                        // then any connected gamepads before OFF
-                        const int k = static_cast<int>(c);
-                        const Control firstPad = padCount > 0 ? Control::Pad0 : Control::Off;
-                        if (c == Control::Ai) c = kKeyboardPlayers ? Control::Key0 : firstPad;
-                        else if (c == Control::Key0) c = Control::Key1;
-                        else if (c == Control::Key1) c = firstPad;
-                        else if (k >= static_cast<int>(Control::Pad0))
-                            c = k - static_cast<int>(Control::Pad0) + 1 < padCount ? static_cast<Control>(k + 1) : Control::Off;
-                        else c = Control::Ai;
+                    if (key == SDLK_LEFT || key == SDLK_RIGHT) {
+                        // AI -> KEY 0 -> KEY 1 -> the connected gamepads -> OFF -> AI, as observed on the original;
+                        // Left goes the same way back. (A keyboard can be plugged into the console too.)
+                        std::vector<Control> ring = {Control::Ai, Control::Key0, Control::Key1};
+                        for (int j = 0; j < padCount; ++j) ring.push_back(static_cast<Control>(static_cast<int>(Control::Pad0) + j));
+                        ring.push_back(Control::Off);
+                        const auto at = std::find(ring.begin(), ring.end(), c);
+                        const std::size_t n = ring.size();
+                        const std::size_t from = at == ring.end() ? n - 1 : static_cast<std::size_t>(at - ring.begin());  // a gamepad that went away counts as OFF
+                        c = ring[(from + (key == SDLK_RIGHT ? 1 : n - 1)) % n];
                     }
                     if (key == SDLK_ESCAPE) {
                         screen = Screen::MainMenu;
@@ -2304,10 +2302,11 @@ int runGame(int argc, char** argv, bool& again) {
                 if (padCount == 0) renderer.text(*spritesPtr, "None Detected", 320, 170, 0.85f, 0.85f, 0.85f);
                 for (int j = 0; j < padCount; ++j) {
                     const char* name = pads[static_cast<std::size_t>(j)] != nullptr ? SDL_GetGamepadName(pads[static_cast<std::size_t>(j)]) : nullptr;
-                    renderer.text(*spritesPtr, "Joy " + std::to_string(j) + " - " + (name != nullptr ? name : "?"), 320,
+                    renderer.text(*spritesPtr, "Joy " + std::to_string(j + 1) + " - " + (name != nullptr ? name : "?"), 320,
                                   170.0f + 24.0f * static_cast<float>(j), 0.85f, 0.85f, 0.85f);
                 }
-                renderer.text(*spritesPtr, padText(teamPlay ? "Up/Down: select   Left: off   Right: change   T: team   Enter: start" : "Up/Down: select   Left: off   Right: change   Enter: start"), 60, 440, 0.4f, 1.0f, 1.0f);
+                renderer.text(*spritesPtr, "K - Keyboard (KEY 0, KEY 1)", 320, 170.0f + 24.0f * static_cast<float>(std::max(padCount, 1)), 0.85f, 0.85f, 0.85f);
+                renderer.text(*spritesPtr, padText(teamPlay ? "Up/Down: select   Left/Right: change   T: team   Enter: start" : "Up/Down: select   Left/Right: change   Enter: start"), 60, 440, 0.4f, 1.0f, 1.0f);
 #ifdef __SWITCH__
                 renderer.text(*spritesPtr, "- or +: controllers (pair Joy-Con, change who plays)", 60, 462, 0.4f, 1.0f, 1.0f);
 #endif

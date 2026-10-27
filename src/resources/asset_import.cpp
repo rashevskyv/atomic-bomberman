@@ -399,31 +399,52 @@ ImportReport importForRelease(const std::string& source, const std::string& conv
             return report;
         }
     }
-    // Put the finished folder in place. The old one goes out of the way first; what the
-    // file system does not let go of is moved aside instead (the Switch reported "File exists").
+    // Put the finished folder in place. The old one is moved aside under a name nobody uses yet,
+    // not deleted first: the Switch's file system fails deleting a big folder half way ("I/O error")
+    // and then refuses the rename ("File exists"). What is left aside is deleted when it can be.
     std::fprintf(stderr, "INFO  import: converted, putting %s in place of %s\n", work.string().c_str(), target.string().c_str());
-    fs::remove_all(target, ec);
-    if (ec) std::fprintf(stderr, "WARN  import: removing the old folder: %s (%d)\n", ec.message().c_str(), ec.value());
-    ec.clear();
+    fs::path aside;
     if (fs::exists(target, ec)) {
-        std::fprintf(stderr, "WARN  import: the old folder is still there, moving it aside\n");
-        fs::path old = target;
-        old += ".old";
-        fs::remove_all(old, ec);
+        for (int n = 0; n < 1000 && aside.empty(); ++n) {
+            fs::path candidate = target;
+            candidate += n == 0 ? ".old" : ".old" + std::to_string(n);
+            if (!fs::exists(candidate, ec)) aside = candidate;
+        }
         ec.clear();
-        fs::rename(target, old, ec);
-        ec.clear();
+        fs::rename(target, aside, ec);
+        if (ec) {
+            report.ok = false;
+            report.error = "cannot move the old folder aside: " + ec.message();
+            std::fprintf(stderr, "ERROR import: moving %s to %s failed: %s (%d)\n", target.string().c_str(), aside.string().c_str(), ec.message().c_str(), ec.value());
+            return report;
+        }
+        std::fprintf(stderr, "INFO  import: the old folder is now %s\n", aside.string().c_str());
     }
+    ec.clear();
     fs::rename(work, target, ec);
     if (ec) {
         // The finished folder stays in the work place: the next start puts it in place.
         report.ok = false;
         report.error = "cannot put the converted files in place: " + ec.message();
         std::fprintf(stderr, "ERROR import: rename failed: %s (%d)\n", ec.message().c_str(), ec.value());
+        if (!aside.empty()) {
+            std::error_code back;
+            fs::rename(aside, target, back);
+        }
         return report;
     }
     std::fprintf(stderr, "INFO  import: done\n");
-    fs::remove_all(target.string() + ".old", ec);
+    // Leftovers of this and of earlier runs; a failure here costs only disk space.
+    for (int n = 0; n < 1000; ++n) {
+        fs::path old = target;
+        old += n == 0 ? ".old" : ".old" + std::to_string(n);
+        if (!fs::exists(old, ec)) {
+            if (n > 5) break;
+            continue;
+        }
+        fs::remove_all(old, ec);
+        if (ec) std::fprintf(stderr, "WARN  import: removing %s: %s (%d)\n", old.string().c_str(), ec.message().c_str(), ec.value());
+    }
     return report;
 }
 
