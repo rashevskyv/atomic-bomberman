@@ -271,7 +271,12 @@ if(SDL3_FOUND)
     if(AB_SWITCH)
         # atomic.nro for /switch/ on the SD card.
         nx_generate_nacp(OUTPUT atomic.nacp NAME "Atomic Bomberman" AUTHOR "Atomic Bomberman Modern" VERSION "${PROJECT_VERSION}")
-        nx_create_nro(${AB_APP} NACP atomic.nacp)
+        # icon-local.jpg (git-ignored, the original game's art) wins over the project's own icon.jpg when present.
+        set(AB_NRO_ICON "${CMAKE_CURRENT_SOURCE_DIR}/packaging/switch/icon.jpg")
+        if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/packaging/switch/icon-local.jpg")
+            set(AB_NRO_ICON "${CMAKE_CURRENT_SOURCE_DIR}/packaging/switch/icon-local.jpg")
+        endif()
+        nx_create_nro(${AB_APP} NACP atomic.nacp ICON "${AB_NRO_ICON}")
     endif()
 else()
     message(STATUS "SDL3 not found: building the core and tests only (use -DAB_FETCH_SDL3=ON to download it)")

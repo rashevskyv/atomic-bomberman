@@ -28,3 +28,4 @@ __pycache__/
 # The online service (deploy/): its settings, keys and data.
 /deploy/.env
 /deploy/data/
+packaging/switch/icon-local.jpg
