@@ -19,6 +19,18 @@ namespace {
 
 using State = net::Client::State;
 
+// This machine's address, for a host to read out (asked again every few seconds: it can change).
+const std::string& myAddress() {
+    static std::string address;
+    static std::uint64_t askedAt = 0;
+    const std::uint64_t now = net::clockMs();
+    if (askedAt == 0 || now - askedAt > 4000) {
+        askedAt = now;
+        address = net::localAddressText();
+    }
+    return address;
+}
+
 constexpr int kJoinFields = 8;   // name, address, password, join, browse online, join by code, tournament, hide my address; then the servers found, then back
 constexpr int kJoinHideRow = 7;
 constexpr int kTournamentRows = 5;  // the file, open, play my match, trust the organiser, back
@@ -1288,7 +1300,10 @@ void NetUi::drawEntry(Renderer& r, SpriteBank& bank, int frame) {
         }
         item(kHostStartRow, "Start the server", 86.0f + 24.0f * static_cast<float>(kHostStartRow) + 6.0f);
         item(kHostStartRow + 1, "Back", 86.0f + 24.0f * static_cast<float>(kHostStartRow + 1) + 6.0f);
-        const std::vector<std::string> notes = {"Others join with your address and this port (TCP and UDP).",
+        const std::string address = myAddress();
+        const std::string port = portText_.empty() ? std::to_string(net::kDefaultPort) : portText_;
+        const std::vector<std::string> notes = {address.empty() ? "Others join with your address and this port (TCP and UDP)."
+                                                                : "Others join: " + address + "   port " + port + " (TCP and UDP)",
                                                 "On the same network they find the game by themselves.",
                                                 "If your router lets nothing in: announce the game online, and give out its code.",
                                                 "For a server without a window run atomic_server."};
@@ -1454,6 +1469,9 @@ void NetUi::drawLobby(Renderer& r, SpriteBank& bank, int frame, std::uint64_t no
         label(r, bank, wrap(r, bank, "verified server of " + verifiedOperator_, 284).front(), 24, 296, 0.3f, 0.95f, 0.4f);
     } else if (!certificateProblem_.empty()) {
         label(r, bank, wrap(r, bank, "certificate: " + certificateProblem_, 284).front(), 24, 296, 1.0f, 0.6f, 0.2f);
+    } else if (hosting_ && !myAddress().empty()) {
+        // What to type on the other side to join this game.
+        label(r, bank, "Join: " + myAddress() + ":" + std::to_string(server_.port()), 24, 296, 0.3f, 0.95f, 0.4f);
     } else if (!client_.serverIdentity().empty()) {
         // On a line of its own: beside the note above the two ran into each other.
         label(r, bank, "server id " + client_.serverIdentity(), 24, 296, 0.6f, 0.6f, 0.6f);

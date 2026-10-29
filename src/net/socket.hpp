@@ -41,6 +41,10 @@ std::optional<Address> resolve(const std::string& host, std::uint16_t port);
 // "host", "host:port", an IPv6 literal, or "[IPv6 literal]:port".
 std::optional<Address> resolveHostPort(const std::string& text, std::uint16_t defaultPort);
 
+// This machine's IPv4 address on the network it reaches others by, as "a.b.c.d"; empty if it has none.
+// (What a host tells the people who are to join it. Nothing is sent to find it out.)
+std::string localAddressText();
+
 // Two blocking helpers for the conversation with a home router (upnp.hpp); not used by
 // the game protocol. Both give up after timeoutMs.
 // Sends a datagram to a multicast group and collects the answers that arrive in time.

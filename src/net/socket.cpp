@@ -1,8 +1,13 @@
 #include "net/socket.hpp"
 
+#ifdef __SWITCH__
+#include <switch.h>
+#endif
+
 #include <algorithm>
 #include <cctype>
 #include <chrono>
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 
@@ -271,6 +276,46 @@ bool waitFor(std::intptr_t h, bool writing, std::uint64_t deadline) {
     return select(static_cast<int>(native(h)) + 1, writing ? nullptr : &set, writing ? &set : nullptr, nullptr, &tv) > 0;
 }
 }  // namespace
+
+std::string localAddressText() {
+#ifdef __SWITCH__
+    u32 ip = 0;
+    if (R_FAILED(nifmInitialize(NifmServiceType_User))) return {};
+    const Result rc = nifmGetCurrentIpAddress(&ip);
+    nifmExit();
+    if (R_FAILED(rc) || ip == 0) return {};
+    char text[32];
+    std::snprintf(text, sizeof text, "%u.%u.%u.%u", ip & 0xFFu, (ip >> 8) & 0xFFu, (ip >> 16) & 0xFFu, (ip >> 24) & 0xFFu);
+    return text;
+#else
+    // A datagram socket "connected" to an outside address is given the local address that
+    // the system would send from; no packet goes out.
+    startup();
+    const std::intptr_t h = newSocket(SOCK_DGRAM);
+    if (h == -1) return {};
+    std::string result;
+    const auto to = resolve("8.8.8.8", 53);
+    if (to && !to->v6) {
+        const Native sa = toNative(*to, false);
+        if (::connect(native(h), sa.get(), sa.length) == 0) {
+            sockaddr_in me{};
+#ifdef _WIN32
+            int length = sizeof me;
+#else
+            socklen_t length = sizeof me;
+#endif
+            if (::getsockname(native(h), reinterpret_cast<sockaddr*>(&me), &length) == 0 && me.sin_family == AF_INET) {
+                const std::uint32_t ip = ntohl(me.sin_addr.s_addr);
+                if (ip != 0 && ip != kLoopback)
+                    result = std::to_string((ip >> 24) & 255u) + "." + std::to_string((ip >> 16) & 255u) + "." + std::to_string((ip >> 8) & 255u) + "." +
+                             std::to_string(ip & 255u);
+            }
+        }
+    }
+    closeNative(h);
+    return result;
+#endif
+}
 
 std::vector<std::string> multicastAsk(const std::string& group, std::uint16_t port, const std::string& message, int timeoutMs) {
     std::vector<std::string> answers;
