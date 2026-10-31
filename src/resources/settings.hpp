@@ -25,6 +25,7 @@ struct Settings {
     int musicVolume = 100;            // music_volume, sound_volume: 0-100 (not in the original, whose
     int soundVolume = 100;            // "Adjust Audio" screen was never made)
     bool unusedVoices = false;        // unused_voices: also play the voice clips of the disc that the original never plays (not in the original)
+    bool rumble = true;               // rumble: a gamepad vibrates on a death, a pickup and a bomb of its player (not in the original)
     bool assignKeyboards = true;      // assign_keyboards: a keyboard player in the default player list
 #ifdef __SWITCH__
     bool sharpScale = true;           // sharp_scale: draw at a whole-number multiple, then fit to the screen (not in the original)

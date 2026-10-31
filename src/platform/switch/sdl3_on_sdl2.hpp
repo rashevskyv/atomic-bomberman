@@ -292,9 +292,73 @@ inline void readButtons(const Slot& s, std::array<bool, SDL_GAMEPAD_BUTTON_COUNT
     }
 }
 
+// HD rumble: the strengths are SDL3's (0-65535, low and high motor), turned into libnx vibration
+// values for each half of the controller; a pair of Joy-Con and a handheld have two. It stops after
+// `ms` (checked at every poll) and at exit.
+struct Rumble {
+    HidVibrationDeviceHandle handle[2]{};
+    u32 style = 0;
+    int count = 0;
+    u64 stopAtMs = 0;
+};
+inline std::array<Rumble, kPads>& rumbles() {
+    static std::array<Rumble, kPads> r;
+    return r;
+}
+inline u64 nowMs() { return armTicksToNs(armGetSystemTick()) / 1000000ull; }
+inline void rumbleSend(int slot, float low, float high) {
+    Rumble& r = rumbles()[static_cast<std::size_t>(slot)];
+    const u32 style = padGetStyleSet(&slots()[static_cast<std::size_t>(slot)].pad);
+    if (r.style != style) {  // (re)open the devices of the style the controller has now
+        r.style = style;
+        r.count = 0;
+        HidNpadStyleTag tag = static_cast<HidNpadStyleTag>(0);
+        if (style & HidNpadStyleTag_NpadHandheld) tag = HidNpadStyleTag_NpadHandheld, r.count = 2;
+        else if (style & HidNpadStyleTag_NpadJoyDual) tag = HidNpadStyleTag_NpadJoyDual, r.count = 2;
+        else if (style & HidNpadStyleTag_NpadJoyLeft) tag = HidNpadStyleTag_NpadJoyLeft, r.count = 1;
+        else if (style & HidNpadStyleTag_NpadJoyRight) tag = HidNpadStyleTag_NpadJoyRight, r.count = 1;
+        else if (style & HidNpadStyleTag_NpadFullKey) tag = HidNpadStyleTag_NpadFullKey, r.count = 1;
+        if (r.count > 0) hidInitializeVibrationDevices(r.handle, static_cast<size_t>(r.count), idOf(slot), tag);
+    }
+    if (r.count == 0) return;
+    HidVibrationValue v{};
+    v.amp_low = low;
+    v.freq_low = 160.0f;
+    v.amp_high = high;
+    v.freq_high = 320.0f;
+    HidVibrationValue values[2] = {v, v};
+    hidSendVibrationValues(r.handle, values, static_cast<size_t>(r.count));
+}
+inline void rumbleStopAll() {
+    for (int i = 0; i < kPads; ++i)
+        if (rumbles()[static_cast<std::size_t>(i)].stopAtMs != 0) {
+            rumbles()[static_cast<std::size_t>(i)].stopAtMs = 0;
+            rumbleSend(i, 0.0f, 0.0f);
+        }
+}
+inline void rumble(int slot, Uint16 low, Uint16 high, Uint32 ms) {
+    static const bool registered = (hidPermitVibration(true), std::atexit(rumbleStopAll), true);
+    (void)registered;
+    if (slot < 0 || slot >= kPads) return;
+    if (low == 0 && high == 0) {
+        rumbles()[static_cast<std::size_t>(slot)].stopAtMs = 0;
+        rumbleSend(slot, 0.0f, 0.0f);
+        return;
+    }
+    rumbles()[static_cast<std::size_t>(slot)].stopAtMs = nowMs() + ms;
+    rumbleSend(slot, static_cast<float>(low) / 65535.0f, static_cast<float>(high) / 65535.0f);
+}
+
 // Reads every controller and queues what changed since the last time, as SDL3 would report it.
 inline void pollControllers() {
     if (!controllersStarted()) startControllers();
+    for (int i = 0; i < kPads; ++i) {  // a rumble that has run its time
+        Rumble& r = rumbles()[static_cast<std::size_t>(i)];
+        if (r.stopAtMs != 0 && nowMs() >= r.stopAtMs) {
+            r.stopAtMs = 0;
+            rumbleSend(i, 0.0f, 0.0f);
+        }
+    }
     for (int i = 0; i < kPads; ++i) {
         Slot& s = slots()[static_cast<std::size_t>(i)];
         padUpdate(&s.pad);
@@ -377,7 +441,15 @@ inline SDL_Gamepad* SDL_OpenGamepad(SDL_JoystickID id) {
     if (id < 1 || id > abx::kPads) return nullptr;
     return new SDL_Gamepad{id - 1};
 }
-inline void SDL_CloseGamepad(SDL_Gamepad* pad) { delete pad; }
+inline void SDL_CloseGamepad(SDL_Gamepad* pad) {
+    if (pad != nullptr) abx::rumble(pad->slot, 0, 0, 0);
+    delete pad;
+}
+inline bool SDL_RumbleGamepad(SDL_Gamepad* pad, Uint16 low, Uint16 high, Uint32 ms) {
+    if (pad == nullptr) return false;
+    abx::rumble(pad->slot, low, high, ms);
+    return true;
+}
 inline SDL_JoystickID SDL_GetGamepadID(SDL_Gamepad* pad) { return pad->slot + 1; }
 inline const char* SDL_GetGamepadName(SDL_Gamepad* pad) {
     const u32 style = padGetStyleSet(&abx::slots()[static_cast<std::size_t>(pad->slot)].pad);

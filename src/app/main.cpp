@@ -274,9 +274,23 @@ ab::PlayerInput gamepadInput(SDL_Gamepad* pad) {
     return in;
 }
 
+// Makes the gamepad of a player vibrate (strength 0-65535, milliseconds); set once the pads are known.
+std::function<void(int, std::uint16_t, std::uint32_t)> gRumble;
+
 // Sound id ranges of the original's soundlst.res for each gameplay event.
 void playEvents(const ab::World& world, const std::vector<ab::Event>& events, ab::Audio& audio) {
     for (const ab::Event& e : events) {
+        if (gRumble && e.player >= 0) {
+            switch (e.kind) {
+                case ab::EventKind::PlayerDied: gRumble(e.player, 60000, 500); break;
+                case ab::EventKind::BombExploded: gRumble(e.player, 20000, 120); break;
+                case ab::EventKind::Pickup:
+                case ab::EventKind::PickupJelly: gRumble(e.player, 16000, 100); break;
+                case ab::EventKind::PickupAwesome: gRumble(e.player, 30000, 220); break;
+                case ab::EventKind::DiseaseGot: gRumble(e.player, 24000, 200); break;
+                default: break;
+            }
+        }
         switch (e.kind) {
             // Sound ids as at the original's call sites; each is the first of a run of
             // consecutive ids from which one is taken.
@@ -847,6 +861,11 @@ int runGame(int argc, char** argv, bool& again) {
             if (!sound) return;
             if (cfg.disableGameMusic) audio.stopMusic();
             else audio.playMusic(1100 + lv);
+        };
+        gRumble = [&](int player, std::uint16_t strength, std::uint32_t ms) {
+            if (!cfg.rumble || player < 0 || player >= ab::kMaxPlayers) return;
+            const int k = static_cast<int>(control[static_cast<std::size_t>(player)]) - static_cast<int>(Control::Pad0);
+            if (k >= 0 && k < kMaxPads && pads[static_cast<std::size_t>(k)] != nullptr) SDL_RumbleGamepad(pads[static_cast<std::size_t>(k)], strength, strength, ms);
         };
         netHooks.stepped = [&](const ab::World& w, const std::vector<ab::Event>& events) { playEvents(w, events, audio); };
         netHooks.resultShown = [&](bool draw, bool decided) {
